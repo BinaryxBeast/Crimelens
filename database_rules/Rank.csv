@@ -1,0 +1,5 @@
+Column Name,Type,Key,Description
+RankID,INT,PK,"Primary key — unique identifier for the rank. Referenced by Employee.RankID"
+RankName,VARCHAR,,"Name of the police rank (e.g. Constable, Inspector, DSP)"
+Hierarchy,INT,,"Rank hierarchy level (lower = higher rank)"
+Active,BIT,,"Whether the rank is active (1=Active, 0=Inactive)"

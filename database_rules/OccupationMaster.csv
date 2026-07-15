@@ -1,0 +1,3 @@
+Column Name,Type,Key,Description
+OccupationID,INT,PK,"Primary key — unique identifier for each occupation. Referenced by ComplainantDetails.OccupationID"
+OccupationName,VARCHAR,,"Name of the occupation (e.g. Farmer, Government Employee)"

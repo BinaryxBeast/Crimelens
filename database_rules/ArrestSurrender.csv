@@ -1,0 +1,13 @@
+Column Name,Type,Key,Description
+ArrestSurrenderID,UUID,PK,"Primary key — unique identifier for each arrest/surrender event"
+CaseMasterID,UUID,FK,"FK → CaseMaster.CaseMasterID — FIR/case linked to this arrest/surrender"
+ArrestSurrenderTypeID,INT,,"Type of event: arrest or voluntary surrender (lookup value)"
+ArrestSurrenderDate,DATE,,"Date of arrest or surrender"
+ArrestSurrenderStateId,INT,FK,"FK → State.StateID — state where arrest/surrender occurred"
+ArrestSurrenderDistrictId,INT,FK,"FK → District.DistrictID — district where arrest/surrender occurred"
+PoliceStationID,INT,FK,"FK → Unit.UnitID — police station handling the arrest"
+IOID,INT,FK,"FK → Employee.EmployeeID — Investigating Officer who made the arrest"
+CourtID,INT,FK,"FK → Court.CourtID — court before which accused was produced"
+AccusedMasterID,UUID,FK,"FK → Accused.AccusedMasterID — accused person linked to this arrest/surrender"
+IsAccused,BIT,,"Flag (0/1): whether the person is the primary accused in the case"
+IsComplainantAccused,BIT,,"Flag (0/1): whether the complainant is also listed as accused"

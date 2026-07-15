@@ -1,0 +1,5 @@
+Column Name,Type,Key,Description
+DistrictID,INT,PK,"Primary key — unique identifier for the district. Referenced by Court, Unit, Employee, ArrestSurrender"
+DistrictName,VARCHAR,,"Name of the district"
+StateID,INT,FK,"FK → State.StateID — state this district belongs to"
+Active,BIT,,"Whether the district record is active (1=Active, 0=Inactive)"

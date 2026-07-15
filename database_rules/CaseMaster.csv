@@ -1,0 +1,26 @@
+Column Name,Type,Key,Description
+CaseMasterID,UUID,PK,"Primary key — unique identifier for each FIR/case"
+CrimeNo,VARCHAR,,"Crime Number is assigned at the police station level and is linked to the corresponding PoliceStationID. The Crime Number follows a structured format consisting of:
+1 digit Case Category Code + 4 digit District ID + 4 digit Police Station ID (Unit ID) + 4 digit Year + 5 digit Running Serial Number
+A separate running serial number is maintained for each police station, case category, and year.
+Examples:
+• FIR: 104430006202600001
+• UDR: 304430006202600001
+• Zero FIR: 804430006202600001
+• PAR: 404430006202600001"
+CaseNo,VARCHAR,,"The Case Number is generated at the police station level and is associated with the corresponding PoliceStationID. For each case category, a unique serial number is maintained per police station and per year. The format is YYYY + 5-digit running serial number (e.g., 202600001). (Last 9 digits from CrimeNo)"
+CrimeRegisteredDate,DATE,,"Date when the FIR was registered"
+PolicePersonID,INT,FK,"FK → Employee.EmployeeID — officer who registered the FIR"
+PoliceStationID,INT,FK,"FK → Unit.UnitID — police station where FIR is registered"
+CaseCategoryID,INT,FK,"FK → CaseCategory.CaseCategoryID — category "
+GravityOffenceID,INT,FK,"FK → GravityOffence.GravityOffenceID — gravity level of the offence"
+CrimeMajorHeadID,INT,FK,"FK → CrimeHead.CrimeHeadID — major crime head classification"
+CrimeMinorHeadID,INT,FK,"FK → CrimeSubHead.CrimeSubHeadID — minor crime sub-head classification"
+CaseStatusID,INT,FK,"FK → CaseStatusMaster.CaseStatusID — current status of the case"
+CourtID,INT,FK,"FK → Court.CourtID — court where the case is being heard"
+IncidentFromDate,DATETIME,,"Start date and time of the incident"
+IncidentToDate,DATETIME,,"End date and time of the incident"
+InfoReceivedPSDate,DATETIME,,"Date and time when police station received information about the incident"
+latitude,DECIMAL,,"GPS latitude coordinate of the incident location"
+longitude,DECIMAL,,"GPS longitude coordinate of the incident location"
+BriefFacts,Nvarchar(Max),,"Summary of the case"

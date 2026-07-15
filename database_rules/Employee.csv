@@ -1,0 +1,13 @@
+Column Name,Type,Key,Description
+EmployeeID,INT,PK,"Primary key — unique identifier for the police employee. Referenced by CaseMaster.PolicePersonID, ArrestSurrender.IOID"
+DistrictID,INT,FK,"FK → District.DistrictID — district the employee is currently posted in"
+UnitID,INT,FK,"FK → Unit.UnitID — unit/police station the employee is assigned to"
+RankID,INT,FK,"FK → Rank.RankID — current rank of the employee"
+DesignationID,INT,FK,"FK → Designation.DesignationID — current designation of the employee"
+KGID,VARCHAR,,"Karnataka Government ID (unique government employee number)"
+FirstName,VARCHAR,,"First name of the employee"
+EmployeeDOB,DATE,,"Date of birth of the employee"
+GenderID,INT,,"Gender of the employee (lookup value)"
+BloodGroupID,INT,,"Blood group of the employee (lookup value)"
+PhysicallyChallenged,BIT,,"Flag: whether the employee is physically challenged (1=Yes, 0=No)"
+AppointmentDate,DATE,,"Date of appointment to government service"

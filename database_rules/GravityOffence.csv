@@ -1,0 +1,3 @@
+Column Name,Type,Key,Description
+GravityOffenceID,INT,PK,"Primary key — unique identifier for the gravity level. Referenced by CaseMaster.GravityOffenceID"
+LookupValue,VARCHAR,,"Gravity description (e.g. Heinous, Non-Heinous)"

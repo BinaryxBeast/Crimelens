@@ -1,0 +1,30 @@
+{
+  "district": "Udupi",
+  "state": "Karnataka",
+  "police_stations": [
+    "Brahmavara PS",
+    "Kota PS",
+    "Gangolli PS",
+    "Byndoor PS",
+    "Kollur PS",
+    "Karkala Town PS",
+    "Karkala Rural PS",
+    "Hebri PS",
+    "Ajekar PS",
+    "Kapu PS",
+    "Padubidri PS",
+    "Shirva PS",
+    "Kundapura PS",
+    "Shankar Narayana PS",
+    "Amasebail PS",
+    "Kundapura Traffic PS",
+    "Kundapura Rural PS",
+    "Udupi Town PS",
+    "Udupi Traffic PS",
+    "Malpe PS",
+    "Manipal PS",
+    "Hiriyadka PS",
+    "Women PS",
+    "CEN PS"
+  ]
+}

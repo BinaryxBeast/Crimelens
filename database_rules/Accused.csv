@@ -1,0 +1,7 @@
+Column Name,Type,Key,Description
+AccusedMasterID,UUID,PK,"Primary key — unique identifier for each accused person"
+CaseMasterID,UUID,FK,"FK → CaseMaster.CaseMasterID — FIR/case this accused is linked to"
+AccusedName,VARCHAR,,"Full name of the accused"
+AgeYear,INT,,"Age of the accused"
+GenderID,INT,,"Gender of the accused mentioned as M/F/T"
+PersonID,VARCHAR,,"Accused Sorting like A1, A2, A3…."

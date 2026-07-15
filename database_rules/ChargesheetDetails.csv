@@ -1,0 +1,6 @@
+Column Name,Type,Key,Description
+CSID,UUID,PK,"Primary key — unique identifier for the chargesheet"
+CaseMasterID,UUID,FK,"FK → CaseMaster.CaseMasterID — FIR/case filed by this complainant"
+csdate,DATETIME,,"Chargesheeted date"
+cstype,CHAR,,"Final report type A-> Chargesheet, B->False Case, C->Undetected"
+PolicePersonID,INT,FK,"FK → Employee.EmployeeID"

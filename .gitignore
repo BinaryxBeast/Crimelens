@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment variables (API keys, secrets)
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+
+# IDE / OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Temporary utility/migration scripts
+check_schema.js
+test-db.js
+test-lookup.js
+seed.js
+seed_python.py
+upload_ps.js
+modify_form.js
+modify_form.py
+merge_schemas.py
+generate_migration.cjs
+database_migration_status.md

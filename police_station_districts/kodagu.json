@@ -1,0 +1,23 @@
+{
+  "district": "Kodagu",
+  "state": "Karnataka",
+  "police_stations": [
+    "Madikeri Town PS",
+    "Siddapura P.S",
+    "Madikeri Rural P.S",
+    "Napoklu P.S",
+    "Bhagamandala P.S",
+    "Shanivarasanthe PS",
+    "Somawarpete PS",
+    "Suntikoppa PS",
+    "Kushalnagara Town PS",
+    "Kushalnagara Rural PS",
+    "Kushalnagara Traffic PS",
+    "Virajpet Town P.S",
+    "Virajpet Rural P.S",
+    "Gonicoppa P.S",
+    "Ponnampet P.S",
+    "Shrimangala P.S",
+    "Kutta P.S"
+  ]
+}

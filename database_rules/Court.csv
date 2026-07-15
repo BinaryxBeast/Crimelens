@@ -1,0 +1,6 @@
+Column Name,Type,Key,Description
+CourtID,INT,PK,"Primary key — unique identifier for the court. Referenced by CaseMaster.CourtID, ArrestSurrender.CourtID"
+CourtName,VARCHAR,,"Full name of the court"
+DistrictID,INT,FK,"FK → District.DistrictID — district where the court is located"
+StateID,INT,FK,"FK → State.StateID — state where the court is located"
+Active,BIT,,"Whether the court is active (1=Active, 0=Inactive)"

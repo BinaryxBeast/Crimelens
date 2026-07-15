@@ -1,0 +1,5 @@
+Column Name,Type,Key,Description
+ActCode,VARCHAR,PK,"Primary key — unique code for the legal act (e.g. IPC, NDPS)"
+ActDescription,VARCHAR,,"Full official name/description of the act"
+ShortName,VARCHAR,,"Abbreviated/common name of the act"
+Active,BIT,,"Whether the act is currently active and usable (1=Active, 0=Inactive)"

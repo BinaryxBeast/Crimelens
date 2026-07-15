@@ -1,0 +1,4 @@
+Column Name,Type,Key,Description
+CrimeHeadID,INT,FK,"FK → CrimeHead.CrimeHeadID — crime head this act-section combination maps to"
+ActCode,VARCHAR,FK,"FK → Act.ActCode — legal act linked to this crime head"
+SectionCode,VARCHAR,,"Section code from the act applicable to this crime head"

@@ -1,0 +1,3 @@
+Column Name,Type,Key,Description
+CaseCategoryID,INT,PK,"Primary key — unique identifier for the case category. Referenced by CaseMaster.CaseCategoryID"
+LookupValue,VARCHAR,,"Category name (FIR, UDR, PAR..)"  
