@@ -1,8 +1,0 @@
-Column Name,Type,Key,Description
-VictimMasterID,UUID,PK,"Primary key — unique identifier for each victim"
-CaseMasterID,UUID,FK,"FK → CaseMaster.CaseMasterID — FIR/case this victim belongs to"
-VictimName,VARCHAR,,"Full name of the victim"
-AgeYear,INT,,"Age of the victim in years"
-GenderID,INT,,"Gender of the victim (lookup value) like m, f, t"
-VictimPolice,VARCHAR,,"If Victim is police then 1else 0 "
-OccupationName,VARCHAR,,"Occupation of the victim"

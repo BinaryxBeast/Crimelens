@@ -1,3 +1,0 @@
-Column Name,Type,Key,Description
-ReligionID,INT,PK,"Primary key — unique identifier for each religion. Referenced by ComplainantDetails.ReligionID"
-ReligionName,VARCHAR,,"Name of the religion (e.g. Hindu, Muslim, Christian)"

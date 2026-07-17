@@ -1,3 +1,0 @@
-Column Name,Type,Key,Description
-CaseStatusID,INT,PK,"Primary key — unique identifier for each case status. Referenced by CaseMaster.CaseStatusID"
-CaseStatusName,VARCHAR,,"Name of the status (e.g. Under Investigation, Charge Sheeted, Closed)"

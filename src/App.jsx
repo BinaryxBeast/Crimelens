@@ -9,6 +9,7 @@ import MapPage from './pages/MapPage';
 import NetworkPage from './pages/NetworkPage';
 import PredictivePage from './pages/PredictivePage';
 import ReportsPage from './pages/ReportsPage';
+import ProfilePage from './pages/ProfilePage';
 
 
 function ProtectedLayout() {
@@ -47,6 +48,7 @@ function ProtectedLayout() {
           <Route path="/network"    element={<NetworkPage />} />
           <Route path="/predictive" element={<PredictivePage />} />
           <Route path="/reports"    element={<ReportsPage />} />
+          <Route path="/profile"    element={<ProfilePage />} />
 
           <Route path="*"           element={<Navigate to="/" replace />} />
         </Routes>

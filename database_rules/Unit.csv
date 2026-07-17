@@ -1,9 +1,0 @@
-Column Name,Type,Key,Description
-UnitID,INT,PK,"Primary key — unique identifier for the police unit. Referenced by CaseMaster.PoliceStationID, Employee.UnitID, ArrestSurrender.PoliceStationID"
-UnitName,VARCHAR,,"Name of the unit or police station"
-TypeID,INT,FK,"FK → UnitType.UnitTypeID — type/category of the unit"
-ParentUnit,INT,,"Parent unit ID for hierarchy (self-reference to UnitID)"
-NationalityID,INT,,"Nationality reference ID"
-StateID,INT,FK,"FK → State.StateID — state the unit belongs to"
-DistrictID,INT,FK,"FK → District.DistrictID — district the unit belongs to"
-Active,BIT,,"Whether the unit is active (1=Active, 0=Inactive)"

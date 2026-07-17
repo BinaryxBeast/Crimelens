@@ -11,7 +11,7 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
-  const { user, signOut } = useAuthStore();
+  const { user, profile, signOut } = useAuthStore();
   const { stats } = useCrimeData();
   const navigate = useNavigate();
 
@@ -21,7 +21,14 @@ export default function Sidebar() {
   };
 
   const sections = [...new Set(NAV_ITEMS.map(n => n.section))];
-  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'AN';
+
+  // Derive display info from profile
+  const displayName = profile?.officer_name || user?.email || 'Officer';
+  const displayRole = profile?.rank?.RankName || 'SCRB Analyst';
+  const photoUrl = profile?.photo_url || null;
+  const initials = profile?.officer_name
+    ? profile.officer_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : (user?.email ? user.email.slice(0, 2).toUpperCase() : 'AN');
 
   return (
     <aside className="sidebar">
@@ -60,13 +67,17 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <div className="user-avatar">{initials}</div>
+        <div className="sidebar-user" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }} title="View Profile">
+          {photoUrl ? (
+            <img src={photoUrl} alt={displayName} className="user-avatar-img" />
+          ) : (
+            <div className="user-avatar">{initials}</div>
+          )}
           <div className="user-info">
-            <div className="user-name">{user?.email || 'Analyst'}</div>
-            <div className="user-role">SCRB Analyst</div>
+            <div className="user-name">{displayName}</div>
+            <div className="user-role">{displayRole}</div>
           </div>
-          <button className="sign-out-btn" onClick={handleSignOut} title="Sign Out">
+          <button className="sign-out-btn" onClick={(e) => { e.stopPropagation(); handleSignOut(); }} title="Sign Out">
             <span className="material-icons">logout</span>
           </button>
         </div>

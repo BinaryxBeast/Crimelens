@@ -1,9 +1,0 @@
-Column Name,Type,Key,Description
-ComplainantID,UUID,PK,"Primary key — unique identifier for the complainant"
-CaseMasterID,UUID,FK,"FK → CaseMaster.CaseMasterID — FIR/case filed by this complainant"
-ComplainantName,VARCHAR,,"Full name of the complainant"
-AgeYear,INT,,"Age of the complainant"
-OccupationName,VARCHAR,,"Occupation of the complainant"
-ReligionID,INT,FK,"FK → ReligionMaster.ReligionID — religion of the complainant"
-CasteID,INT,FK,"FK → CasteMaster.caste_master_id — caste of the complainant"
-GenderID,INT,,"Gender of the complainant (lookup value)"

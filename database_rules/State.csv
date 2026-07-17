@@ -1,5 +1,0 @@
-Column Name,Type,Key,Description
-StateID,INT,PK,"Primary key — unique identifier for the state. Referenced by Court, District, Unit, ArrestSurrender"
-StateName,VARCHAR,,"Name of the state"
-NationalityID,INT,,"Nationality reference ID"
-Active,BIT,,"Whether the state record is active (1=Active, 0=Inactive)"

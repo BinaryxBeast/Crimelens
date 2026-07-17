@@ -1,6 +1,0 @@
-Column Name,Type,Key,Description
-CaseMasterID,UUID,FK,"FK → CaseMaster.CaseMasterID — FIR/case this act-section applies to"
-ActID,INT,FK,"FK → Act.ActCode — legal act under which charges are framed"
-SectionID,INT,FK,"FK → Section.SectionCode — specific section of the act invoked"
-ActOrderID,INT,,"Display/print order of the act within the case"
-SectionOrderID,INT,,"Display/print order of the section under the act"

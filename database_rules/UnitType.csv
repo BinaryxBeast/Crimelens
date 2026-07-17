@@ -1,6 +1,0 @@
-Column Name,Type,Key,Description
-UnitTypeID,INT,PK,"Primary key — unique identifier for the unit type. Referenced by Unit.TypeID"
-UnitTypeName,VARCHAR,,"Name of the unit type (e.g. Police Station, Circle Office)"
-CityDistState,VARCHAR,,"Operational level: City / District / State"
-Hierarchy,INT,,"Hierarchy level number (lower = higher authority)"
-Active,BIT,,"Whether the unit type is active (1=Active, 0=Inactive)"

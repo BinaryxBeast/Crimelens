@@ -226,37 +226,64 @@ export default function ComplaintDetailModal({ open, onClose, row, onEdit }) {
             </Section>
           )}
 
-          {/* ── Section 7: Accused / Offender ── */}
-          {(offender.name || cd.accused_details || cd.offender_photo_url) && (
+          {/* ── Section 7: Accused / Offender (Multiple) ── */}
+          {((row._accusedAll && row._accusedAll.length > 0) || offender.name || cd.accused_details || cd.offender_photo_url) && (
             <Section number="7" title="Accused / Offender">
-              <div className="detail-person-row">
-                <div className="detail-person-fields">
-                  {cd.accused_details && <div className="detail-text-block">{cd.accused_details}</div>}
-                  <div className="detail-grid detail-grid-3">
-                    <Field label="Name" value={offender.name} />
-                    <Field label="Gender" value={offender.gender} />
-                    <Field label="Age" value={offender.age} />
+              {cd.accused_details && <div className="detail-text-block">{cd.accused_details}</div>}
+              {(row._accusedAll && row._accusedAll.length > 0 ? row._accusedAll : (offender.name ? [{ _single: true }] : [])).map((accItem, idx) => {
+                const acc = accItem._single ? offender : {
+                  name: accItem.AccusedName || '',
+                  gender: accItem.GenderID === 1 ? 'Male' : accItem.GenderID === 2 ? 'Female' : accItem.GenderID === 3 ? 'Other' : '',
+                  age: accItem.AgeYear || '',
+                };
+                const photoUrl = cd.offender_photo_urls?.[idx] || (idx === 0 ? cd.offender_photo_url : null);
+                return (
+                  <div key={idx} className="detail-person-row" style={idx > 0 ? { marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' } : {}}>
+                    <div className="detail-person-fields">
+                      {(row._accusedAll?.length > 1 || idx > 0) && (
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Accused {idx + 1}</div>
+                      )}
+                      <div className="detail-grid detail-grid-3">
+                        <Field label="Name" value={acc.name} />
+                        <Field label="Gender" value={acc.gender} />
+                        <Field label="Age" value={acc.age} />
+                      </div>
+                    </div>
+                    {photoUrl && <PhotoField label="Photo" url={photoUrl} onClick={setFullscreenPhoto} />}
                   </div>
-                </div>
-                <PhotoField label="Photo" url={cd.offender_photo_url} onClick={setFullscreenPhoto} />
-              </div>
+                );
+              })}
             </Section>
           )}
 
-          {/* ── Victim ── */}
-          {(victim.name || cd.victim_photo_url) && (
+          {/* ── Victims (Multiple) ── */}
+          {((row._victims && row._victims.length > 0) || victim.name || cd.victim_photo_url) && (
             <Section number="V" title="Victim Information" icon="person" iconColor="#66bb6a">
-              <div className="detail-person-row">
-                <div className="detail-person-fields">
-                  <div className="detail-grid detail-grid-4">
-                    <Field label="Name" value={victim.name} />
-                    <Field label="Age" value={victim.age} />
-                    <Field label="Gender" value={victim.gender} />
-                    <Field label="Occupation" value={victim.occupation} />
+              {(row._victims && row._victims.length > 0 ? row._victims : (victim.name ? [{ _single: true }] : [])).map((vicItem, idx) => {
+                const vic = vicItem._single ? victim : {
+                  name: vicItem.VictimName || '',
+                  age: vicItem.AgeYear || '',
+                  gender: vicItem.GenderID === 1 ? 'Male' : vicItem.GenderID === 2 ? 'Female' : vicItem.GenderID === 3 ? 'Other' : '',
+                  occupation: vicItem.OccupationName || '',
+                };
+                const photoUrl = cd.victim_photo_urls?.[idx] || (idx === 0 ? cd.victim_photo_url : null);
+                return (
+                  <div key={idx} className="detail-person-row" style={idx > 0 ? { marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' } : {}}>
+                    <div className="detail-person-fields">
+                      {(row._victims?.length > 1 || idx > 0) && (
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#66bb6a', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Victim {idx + 1}</div>
+                      )}
+                      <div className="detail-grid detail-grid-4">
+                        <Field label="Name" value={vic.name} />
+                        <Field label="Age" value={vic.age} />
+                        <Field label="Gender" value={vic.gender} />
+                        <Field label="Occupation" value={vic.occupation} />
+                      </div>
+                    </div>
+                    {photoUrl && <PhotoField label="Photo" url={photoUrl} onClick={setFullscreenPhoto} />}
                   </div>
-                </div>
-                <PhotoField label="Photo" url={cd.victim_photo_url} onClick={setFullscreenPhoto} />
-              </div>
+                );
+              })}
             </Section>
           )}
 
@@ -281,10 +308,16 @@ export default function ComplaintDetailModal({ open, onClose, row, onEdit }) {
           {(cd.action_taken || cd.officer_name) && (
             <Section number="13" title="Action Taken">
               {cd.action_taken && <div className="detail-text-block">{cd.action_taken}</div>}
-              <div className="detail-grid detail-grid-3" style={{ marginTop: 8 }}>
-                <Field label="Officer Name" value={cd.officer_name} />
-                <Field label="Rank" value={cd.officer_rank} />
-                <Field label="No." value={cd.officer_no} mono />
+              <div className="detail-officer-block" style={{ marginTop: 8 }}>
+                {cd.officer_photo_url && (
+                  <img src={cd.officer_photo_url} alt="Officer" className="detail-officer-photo" />
+                )}
+                <div className="detail-grid detail-grid-3" style={{ flex: 1 }}>
+                  <Field label="Officer Name" value={cd.officer_name} />
+                  <Field label="Rank" value={cd.officer_rank} />
+                  <Field label="No. (KGID)" value={cd.officer_no} mono />
+                  {cd.officer_unit && <Field label="Police Station" value={cd.officer_unit} />}
+                </div>
               </div>
             </Section>
           )}

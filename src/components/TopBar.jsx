@@ -9,6 +9,7 @@ const PAGE_META = {
   '/predictive': { title: 'AI Predictive Intelligence',  subtitle: 'Risk scoring, anomaly detection & trend forecasting' },
   '/reports':    { title: 'Reports & Records',           subtitle: 'Incident management & data entry' },
   '/offenders':  { title: 'Offender Registry',           subtitle: 'Manage and monitor registered offenders' },
+  '/profile':    { title: 'Officer Profile',              subtitle: 'Manage your officer details & credentials' },
 };
 
 export default function TopBar({ currentPath }) {

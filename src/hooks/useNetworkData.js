@@ -83,62 +83,74 @@ export function useNetworkData() {
           type: 'handled_by'
         });
 
-        // Extract offender & victim from complaint_data
+        // Extract offender & victim from relational data or complaint_data
         const cd = inc.complaint_data || {};
         
-        // Offender Node
-        const offenderName = cd.offender?.name;
-        if (offenderName) {
-          let offKey = offenderName.toLowerCase().trim().replace(/\s+/g, '_');
-          if (offKey.includes('unknown') || offKey.includes('anonymous') || offKey.includes('annonymous')) {
-            offKey = `${offKey}_${inc.CaseMasterID}`;
-          }
-          if (!offenderNodes[offKey]) {
-            const offNodeId = `offender-${offKey}`;
-            offenderNodes[offKey] = offNodeId;
-            graphNodes.push({
-              id:     offNodeId,
-              label:  offenderName,
-              type:   'offender',
-              district: cd.offender?.district ? getDistrictName(cd.offender.district) : distName,
-              modus:  cd.offender?.modus_operandi || '',
-              val:    3,
+        // Offender Nodes (multiple) — use relational data first, fallback to complaint_data
+        const offenderList = (inc._accusedAll && inc._accusedAll.length > 0)
+          ? inc._accusedAll.map(a => ({ name: a.AccusedName, district: null, modus_operandi: '' }))
+          : (cd.offenders || (cd.offender ? [cd.offender] : []));
+        
+        for (const offData of offenderList) {
+          const offenderName = offData.name || offData.AccusedName;
+          if (offenderName) {
+            let offKey = offenderName.toLowerCase().trim().replace(/\s+/g, '_');
+            if (offKey.includes('unknown') || offKey.includes('anonymous') || offKey.includes('annonymous')) {
+              offKey = `${offKey}_${inc.CaseMasterID}`;
+            }
+            if (!offenderNodes[offKey]) {
+              const offNodeId = `offender-${offKey}`;
+              offenderNodes[offKey] = offNodeId;
+              graphNodes.push({
+                id:     offNodeId,
+                label:  offenderName,
+                type:   'offender',
+                district: offData.district ? getDistrictName(offData.district) : distName,
+                modus:  offData.modus_operandi || '',
+                val:    3,
+              });
+            }
+            // Link Incident -> Offender
+            graphLinks.push({
+              source: incNodeId,
+              target: offenderNodes[offKey],
+              type: 'accused',
             });
           }
-          // Link Incident -> Offender
-          graphLinks.push({
-            source: incNodeId,
-            target: offenderNodes[offKey],
-            type: 'accused',
-          });
         }
 
-        // Victim Node
-        const victimName = cd.victim?.name;
-        if (victimName) {
-          let vicKey = victimName.toLowerCase().trim().replace(/\s+/g, '_');
-          if (vicKey.includes('unknown') || vicKey.includes('anonymous') || vicKey.includes('annonymous')) {
-            vicKey = `${vicKey}_${inc.CaseMasterID}`;
-          }
-          if (!victimNodes[vicKey]) {
-            const vicNodeId = `victim-${vicKey}`;
-            victimNodes[vicKey] = vicNodeId;
-            graphNodes.push({
-              id: vicNodeId,
-              label: victimName,
+        // Victim Nodes (multiple) — use relational data first, fallback to complaint_data
+        const victimList = (inc._victims && inc._victims.length > 0)
+          ? inc._victims.map(v => ({ name: v.VictimName, age: v.AgeYear, gender: v.GenderID === 1 ? 'Male' : v.GenderID === 2 ? 'Female' : 'Other', occupation: v.OccupationName }))
+          : (cd.victims || (cd.victim ? [cd.victim] : []));
+
+        for (const vicData of victimList) {
+          const victimName = vicData.name || vicData.VictimName;
+          if (victimName) {
+            let vicKey = victimName.toLowerCase().trim().replace(/\s+/g, '_');
+            if (vicKey.includes('unknown') || vicKey.includes('anonymous') || vicKey.includes('annonymous')) {
+              vicKey = `${vicKey}_${inc.CaseMasterID}`;
+            }
+            if (!victimNodes[vicKey]) {
+              const vicNodeId = `victim-${vicKey}`;
+              victimNodes[vicKey] = vicNodeId;
+              graphNodes.push({
+                id: vicNodeId,
+                label: victimName,
+                type: 'victim',
+                age: vicData.age,
+                gender: vicData.gender,
+                occupation: vicData.occupation,
+                val: 3,
+              });
+            }
+            // Link Incident -> Victim
+            graphLinks.push({
+              source: incNodeId,
+              target: victimNodes[vicKey],
               type: 'victim',
-              age: cd.victim?.age,
-              gender: cd.victim?.gender,
-              occupation: cd.victim?.occupation,
-              val: 3,
             });
           }
-          // Link Incident -> Victim
-          graphLinks.push({
-            source: incNodeId,
-            target: victimNodes[vicKey],
-            type: 'victim',
-          });
         }
       });
 

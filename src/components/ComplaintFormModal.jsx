@@ -1,8 +1,18 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { DAYS_OF_WEEK, EMPTY_COMPLAINT } from '../hooks/useCrimeData';
 import { useLookupData } from '../hooks/useLookupData';
+import { useAuthStore } from '../store/authStore';
 import LocationPickerMap from './LocationPickerMap';
-import { supabase } from '../supabaseClient';
+
+// ── Step configuration ──────────────────────────────────────────
+const STEPS = [
+  { id: 1, label: 'Incident Info', icon: 'description' },
+  { id: 2, label: 'Location', icon: 'place' },
+  { id: 3, label: 'Parties', icon: 'groups' },
+  { id: 4, label: 'Property', icon: 'inventory_2' },
+  { id: 5, label: 'Post-Incident', icon: 'gavel' },
+  { id: 6, label: 'Review', icon: 'fact_check' },
+];
 
 // ── Photo Upload Helper ─────────────────────────────────────────
 function PhotoUpload({ label, value, onChange, id }) {
@@ -54,22 +64,84 @@ function PhotoUpload({ label, value, onChange, id }) {
   );
 }
 
+// ── Collapsible Section ─────────────────────────────────────────
+function CollapsibleSection({ number, title, children, defaultOpen = false, filled = false, numberStyle }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className={`fir-section fir-section-collapsible${isOpen ? ' is-open' : ''}${filled ? ' is-filled' : ''}`}>
+      <div className="fir-section-header" onClick={() => setIsOpen(!isOpen)}>
+        <div className="fir-section-header-left">
+          <div className="fir-section-number" style={numberStyle}>{number}</div>
+          {title && <div className="fir-section-title">{title}</div>}
+          {filled && !isOpen && <span className="fir-filled-dot" title="Has data" />}
+        </div>
+        <span className={`material-icons fir-collapse-icon${isOpen ? ' is-open' : ''}`}>expand_more</span>
+      </div>
+      <div className={`fir-section-body${isOpen ? ' is-open' : ''}`}>
+        <div className="fir-section-body-inner">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Reconstruct form data from a DB row for editing ─────────────
 function rowToFormData(row) {
   const cd = row.complaint_data || {};
   const comp = row._complainant || {};
-  const vic = row._victim || {};
-  const acc = row._accused || {};
+
+  // Build victims array from relational data or complaint_data
+  const vicRows = row._victims && row._victims.length > 0 ? row._victims : [];
+  const cdVictims = cd.victims || (cd.victim ? [cd.victim] : []);
+  let victims;
+  if (vicRows.length > 0) {
+    victims = vicRows.map(vic => ({
+      name: vic.VictimName || '',
+      age: vic.AgeYear || '',
+      gender: vic.GenderID === 1 ? 'Male' : vic.GenderID === 2 ? 'Female' : vic.GenderID === 3 ? 'Other' : '',
+      occupation: vic.OccupationName || '',
+    }));
+  } else if (cdVictims.length > 0) {
+    victims = cdVictims;
+  } else {
+    victims = [{ name: '', age: '', gender: '', occupation: '' }];
+  }
+
+  // Build offenders array from relational data or complaint_data
+  const accRows = row._accusedAll && row._accusedAll.length > 0 ? row._accusedAll : [];
+  const cdOffenders = cd.offenders || (cd.offender ? [cd.offender] : []);
+  let offenders;
+  if (accRows.length > 0) {
+    offenders = accRows.map(acc => ({
+      name: acc.AccusedName || '',
+      age: acc.AgeYear || '',
+      gender: acc.GenderID === 1 ? 'Male' : acc.GenderID === 2 ? 'Female' : acc.GenderID === 3 ? 'Other' : 'Male',
+      district: '',
+      address: '',
+      modus_operandi: '',
+      criminal_history: 0,
+      risk_score: 0,
+    }));
+  } else if (cdOffenders.length > 0) {
+    offenders = cdOffenders;
+  } else {
+    offenders = [{ name: '', age: '', gender: 'Male', district: '', address: '', modus_operandi: '', criminal_history: 0, risk_score: 0 }];
+  }
+
+  // Photo URLs — support both old single and new array format
+  const offenderPhotos = cd.offender_photo_urls || (cd.offender_photo_url ? [cd.offender_photo_url] : offenders.map(() => null));
+  const victimPhotos = cd.victim_photo_urls || (cd.victim_photo_url ? [cd.victim_photo_url] : victims.map(() => null));
+
   return {
     ...EMPTY_COMPLAINT,
     ...cd,
     // Table-level columns
     fir_number: row.CrimeNo || '',
     crime_type: row.CrimeMajorHeadID || '',
-    crime_sub_head: row.CrimeMinorHeadID || '',
     district: row.DistrictID || '',
     police_station: row.PoliceStationID || '',
-    case_category: row.CaseCategoryID || '',
     latitude: row.latitude || '',
     longitude: row.longitude || '',
     status: row.CaseStatusID || '',
@@ -88,36 +160,23 @@ function rowToFormData(row) {
       passport_place_of_issue: cd.complainant?.passport_place_of_issue || '',
       occupation: comp.OccupationName || cd.complainant?.occupation || '',
       address: cd.complainant?.address || '',
+      religion_id: comp.ReligionID || cd.complainant?.religion_id || '',
+      caste_id: comp.CasteID || cd.complainant?.caste_id || '',
     },
-    // Victim from relational table
-    victim: {
-      name: vic.VictimName || cd.victim?.name || '',
-      age: vic.AgeYear || cd.victim?.age || '',
-      gender: vic.GenderID === 1 ? 'Male' : vic.GenderID === 2 ? 'Female' : vic.GenderID === 3 ? 'Other' : cd.victim?.gender || '',
-      occupation: vic.OccupationName || cd.victim?.occupation || '',
-    },
-    // Accused from relational table
-    offender: {
-      name: acc.AccusedName || cd.offender?.name || '',
-      age: acc.AgeYear || cd.offender?.age || '',
-      gender: acc.GenderID === 1 ? 'Male' : acc.GenderID === 2 ? 'Female' : acc.GenderID === 3 ? 'Other' : cd.offender?.gender || 'Male',
-      district: cd.offender?.district || '',
-      address: cd.offender?.address || '',
-      modus_operandi: cd.offender?.modus_operandi || '',
-      criminal_history: cd.offender?.criminal_history || 0,
-      risk_score: cd.offender?.risk_score || 0,
-    },
+    // Multiple victims
+    victims,
+    // Multiple offenders
+    offenders,
+    arrests: row._arrests && row._arrests.length > 0 ? row._arrests.map(a => ({ date: a.ArrestSurrenderDate || '', type: a.ArrestSurrenderTypeID || '', state: a.ArrestSurrenderStateId || '', district: a.ArrestSurrenderDistrictId || '', ps: a.PoliceStationID || '', io: a.IOID || '', court: a.CourtID || '' })) : cd.arrests || [],
+    chargesheets: row._chargesheets && row._chargesheets.length > 0 ? row._chargesheets.map(c => ({ date: c.csdate || '', type: c.cstype || '', io: c.PolicePersonID || '' })) : cd.chargesheets || [],
     // Acts from relational table
     acts: row._actSections && row._actSections.length > 0
-      ? [
-          ...row._actSections.map(a => ({ act: a.ActID || 'IPC', sections: parseInt(a.SectionID) || '' })),
-          ...Array(Math.max(0, 3 - row._actSections.length)).fill({ act: 'IPC', sections: '' }),
-        ].slice(0, 3)
-      : cd.acts || [{ act: 'IPC', sections: '' }, { act: 'IPC', sections: '' }, { act: 'IPC', sections: '' }],
-    // Photos: use existing URLs from complaint_data
+      ? row._actSections.map(a => ({ act: a.ActID || 'IPC', sections: parseInt(a.SectionID) || '' }))
+      : cd.acts || [{ act: 'IPC', sections: '' }],
+    // Photos
     complainant_photo: cd.complainant_photo_url || null,
-    offender_photo: cd.offender_photo_url || null,
-    victim_photo: cd.victim_photo_url || null,
+    offender_photos: offenderPhotos,
+    victim_photos: victimPhotos,
     // Keep reference to existing complaint_data for update
     _existingComplaintData: cd,
     _id: row.CaseMasterID,
@@ -135,7 +194,8 @@ export default function ComplaintFormModal({
   const [localError, setLocalError] = useState('');
   const [currentStep, setCurrentStep] = useState(1);
   const [draftExists, setDraftExists] = useState(false);
-  const totalSteps = 5;
+  const [visitedSteps, setVisitedSteps] = useState(new Set([1]));
+  const totalSteps = 6;
 
   const handleNext = () => {
     const formEl = document.getElementById('complaint-form');
@@ -148,7 +208,9 @@ export default function ComplaintFormModal({
       }
     }
     if (currentStep < totalSteps) {
-      setCurrentStep(s => s + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      setVisitedSteps(prev => new Set([...prev, nextStep]));
       setTimeout(() => document.querySelector('.fir-form-body')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
     }
   };
@@ -160,11 +222,23 @@ export default function ComplaintFormModal({
     }
   };
 
+  const handleStepClick = (stepId) => {
+    // Allow clicking on visited steps or steps before current
+    if (visitedSteps.has(stepId) || stepId <= currentStep) {
+      setCurrentStep(stepId);
+      setTimeout(() => document.querySelector('.fir-form-body')?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+    }
+  };
+
+  // Officer profile from auth store
+  const { profile: officerProfile } = useAuthStore();
+
   // Lookup data from DB
   const {
-    districts, crimeHeads, crimeSubHeads, statuses, gravityLevels,
-    caseCategories, acts, sections, occupations, units,
-    getUnitsByDistrict, getSubHeadsByCrimeHead, getSectionsByAct,
+    districts, crimeHeads, statuses, gravityLevels,
+    acts, sections, occupations, units,
+    religions, castes, states, unitTypes, courts, employees, designations, ranks,
+    getUnitsByDistrict, getSectionsByAct,
     getDistrictCoords,
   } = useLookupData();
 
@@ -173,13 +247,7 @@ export default function ComplaintFormModal({
     () => form.district ? getUnitsByDistrict(parseInt(form.district)) : units,
     [form.district, getUnitsByDistrict, units]
   );
-  const filteredSubHeads = useMemo(() => {
-    let typeId = parseInt(form.crime_type);
-    if (isNaN(typeId)) {
-      typeId = crimeHeads.find(c => c.CrimeGroupName === form.crime_type)?.CrimeHeadID;
-    }
-    return typeId ? getSubHeadsByCrimeHead(typeId) : [];
-  }, [form.crime_type, crimeHeads, getSubHeadsByCrimeHead]);
+
   const filteredSections0 = useMemo(
     () => form.acts[0]?.act ? getSectionsByAct(form.acts[0].act) : [],
     [form.acts, getSectionsByAct]
@@ -200,14 +268,8 @@ export default function ComplaintFormModal({
       let initialForm = isEdit ? rowToFormData(editRow) : JSON.parse(JSON.stringify(EMPTY_COMPLAINT));
 
       if (isEdit) {
-        if (initialForm.case_category && !isNaN(initialForm.case_category)) {
-          initialForm.case_category = caseCategories.find(c => c.CaseCategoryID === parseInt(initialForm.case_category))?.LookupValue || initialForm.case_category;
-        }
         if (initialForm.crime_type && !isNaN(initialForm.crime_type)) {
           initialForm.crime_type = crimeHeads.find(c => c.CrimeHeadID === parseInt(initialForm.crime_type))?.CrimeGroupName || initialForm.crime_type;
-        }
-        if (initialForm.crime_sub_head && !isNaN(initialForm.crime_sub_head)) {
-          initialForm.crime_sub_head = crimeSubHeads.find(c => c.CrimeSubHeadID === parseInt(initialForm.crime_sub_head))?.CrimeHeadName || initialForm.crime_sub_head;
         }
       }
 
@@ -245,31 +307,22 @@ export default function ComplaintFormModal({
 
       setForm(initialForm);
       setLocalError('');
+      setCurrentStep(1);
+      setVisitedSteps(new Set([1]));
 
-      // Fetch police profile for auto-filling and read-only display
-      const fetchProfile = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data, error } = await supabase
-            .from('Employee')
-            .select('FirstName, RankID, DesignationID, KGID')
-            .eq('id', user.id)
-            .single();
-          
-          if (data && !isEdit) {
-            setForm(prev => ({
-              ...prev,
-              officer_name: data.FirstName || '',
-              officer_rank: data.RankID ? String(data.RankID) : '',
-              officer_no: data.KGID || '',
-            }));
-          }
-        }
-      };
-      
-      fetchProfile();
+      // Auto-fill officer details from profile store
+      if (officerProfile && !isEdit) {
+        setForm(prev => ({
+          ...prev,
+          officer_name: officerProfile.officer_name || '',
+          officer_rank: officerProfile.rank?.RankName || '',
+          officer_no: officerProfile.kgid || '',
+          officer_unit: officerProfile.unit?.UnitName || '',
+          officer_photo_url: officerProfile.photo_url || '',
+        }));
+      }
     }
-  }, [open, editRow, isEdit]);
+  }, [open, editRow, isEdit, officerProfile]);
 
   if (!open) return null;
 
@@ -284,12 +337,45 @@ export default function ComplaintFormModal({
       return { ...prev, acts };
     });
 
+  // ── Array helpers for victims/offenders ──
+  const setArrayItem = (arrayName, index, field, value) =>
+    setForm(prev => {
+      const arr = [...prev[arrayName]];
+      arr[index] = { ...arr[index], [field]: value };
+      return { ...prev, [arrayName]: arr };
+    });
+
+  const addArrayItem = (arrayName, template) =>
+    setForm(prev => {
+      if (prev[arrayName].length >= 10) return prev;
+      const photosKey = arrayName === 'victims' ? 'victim_photos' : arrayName === 'offenders' ? 'offender_photos' : null;
+      const updates = { [arrayName]: [...prev[arrayName], { ...template }] };
+      if (photosKey) updates[photosKey] = [...(prev[photosKey] || []), null];
+      return { ...prev, ...updates };
+    });
+
+  const removeArrayItem = (arrayName, index) =>
+    setForm(prev => {
+      if (prev[arrayName].length <= 1) return prev;
+      const photosKey = arrayName === 'victims' ? 'victim_photos' : arrayName === 'offenders' ? 'offender_photos' : null;
+      const updates = { [arrayName]: prev[arrayName].filter((_, i) => i !== index) };
+      if (photosKey) updates[photosKey] = (prev[photosKey] || []).filter((_, i) => i !== index);
+      return { ...prev, ...updates };
+    });
+
+  const setArrayPhoto = (photosKey, index, value) =>
+    setForm(prev => {
+      const photos = [...(prev[photosKey] || [])];
+      photos[index] = value;
+      return { ...prev, [photosKey]: photos };
+    });
+
   const handleSaveDraft = () => {
     try {
       const draftForm = { ...form };
       if (draftForm.complainant_photo instanceof File) draftForm.complainant_photo = null;
-      if (draftForm.offender_photo instanceof File) draftForm.offender_photo = null;
-      if (draftForm.victim_photo instanceof File) draftForm.victim_photo = null;
+      draftForm.offender_photos = (draftForm.offender_photos || []).map(p => p instanceof File ? null : p);
+      draftForm.victim_photos = (draftForm.victim_photos || []).map(p => p instanceof File ? null : p);
 
       localStorage.setItem('crimelens_fir_draft', JSON.stringify(draftForm));
       alert('Draft saved successfully!');
@@ -336,24 +422,22 @@ export default function ComplaintFormModal({
     // Collect File objects separately from form data
     const photoFiles = {
       complainant_photo: form.complainant_photo instanceof File ? form.complainant_photo : null,
-      offender_photo: form.offender_photo instanceof File ? form.offender_photo : null,
-      victim_photo: form.victim_photo instanceof File ? form.victim_photo : null,
+      offender_photos: (form.offender_photos || []).map(p => p instanceof File ? p : null),
+      victim_photos: (form.victim_photos || []).map(p => p instanceof File ? p : null),
     };
 
     const payload = { ...form };
-    const catMatch = caseCategories.find(c => c.LookupValue === form.case_category);
-    if (catMatch) payload.case_category = catMatch.CaseCategoryID;
-    
     const typeMatch = crimeHeads.find(c => c.CrimeGroupName === form.crime_type);
     if (typeMatch) payload.crime_type = typeMatch.CrimeHeadID;
-    
-    const subMatch = filteredSubHeads.find(s => s.CrimeHeadName === form.crime_sub_head);
-    if (subMatch) payload.crime_sub_head = subMatch.CrimeSubHeadID;
 
     onSave(payload, isEdit, photoFiles);
   };
 
   const displayError = formError || localError;
+
+  // Empty templates for adding new items
+  const emptyVictim = { name: '', age: '', gender: '', occupation: '' };
+  const emptyOffender = { name: '', age: '', gender: 'Male', district: '', address: '', modus_operandi: '', criminal_history: 0, risk_score: 0 };
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -371,12 +455,36 @@ export default function ComplaintFormModal({
         </div>
 
         <form onSubmit={handleSubmit} id="complaint-form">
-          <div className="stepper-progress">
-            <div className="stepper-text">Step {currentStep} of {totalSteps}</div>
-            <div className="stepper-bar-bg">
-              <div className="stepper-bar-fill" style={{ width: `${(currentStep / totalSteps) * 100}%` }}></div>
-            </div>
+          {/* ── Visual Stepper ── */}
+          <div className="stepper-visual">
+            {STEPS.map((step, idx) => {
+              const isCompleted = visitedSteps.has(step.id) && step.id < currentStep;
+              const isActive = step.id === currentStep;
+              const isClickable = visitedSteps.has(step.id) || step.id <= currentStep;
+              return (
+                <div key={step.id} className="stepper-step-wrapper">
+                  <div
+                    className={`stepper-step${isActive ? ' active' : ''}${isCompleted ? ' completed' : ''}${isClickable ? ' clickable' : ''}`}
+                    onClick={() => isClickable && handleStepClick(step.id)}
+                    title={step.label}
+                  >
+                    <div className="stepper-circle">
+                      {isCompleted ? (
+                        <span className="material-icons stepper-check">check</span>
+                      ) : (
+                        <span className="material-icons stepper-icon">{step.icon}</span>
+                      )}
+                    </div>
+                    <span className="stepper-label">{step.label}</span>
+                  </div>
+                  {idx < STEPS.length - 1 && (
+                    <div className={`stepper-connector${isCompleted ? ' completed' : ''}`} />
+                  )}
+                </div>
+              );
+            })}
           </div>
+
           <div className="fir-form-body">
             {draftExists && (
               <div className="fir-draft-banner" style={{
@@ -404,8 +512,7 @@ export default function ComplaintFormModal({
             {/* ── STEP 1: Incident Details ── */}
             <div data-step="1" style={{ display: currentStep === 1 ? 'block' : 'none' }}>
             {/* ── Section 1: District, PS, Year, FIR No, Date ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">1</div>
+            <CollapsibleSection number="1" title="FIR Registration Details" defaultOpen={true} filled={!!(form.district && form.fir_number)}>
               <div className="fir-row fir-row-5">
                 <div className="fir-field">
                   <label className="fir-label required">Dist.</label>
@@ -440,49 +547,59 @@ export default function ComplaintFormModal({
                 </div>
                 <div className="fir-field">
                   <label className="fir-label required">F.I.R. No.</label>
-                  <input className="form-input fir-input" required value={form.fir_number} onChange={e => set('fir_number', e.target.value)} placeholder="KSP/BLR/2025/XXX" disabled={isEdit} />
+                  <input className="form-input fir-input" required value={form.fir_number} onChange={e => set('fir_number', e.target.value)} placeholder="KSP/BLR/2025/XXX" />
                 </div>
                 <div className="fir-field">
                   <label className="fir-label required">Date</label>
                   <input className="form-input fir-input" type="date" required value={form.fir_date} onChange={e => set('fir_date', e.target.value)} />
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── Section 2: Acts & Sections ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">2</div>
+            <CollapsibleSection number="2" title="Acts & Sections" filled={!!(form.acts[0]?.sections)}>
               <div className="fir-acts-grid">
-                {[0, 1, 2].map(i => (
-                  <div key={i} className="fir-row fir-row-acts">
-                    <span className="fir-row-label">({['i', 'ii', 'iii'][i]})</span>
+                {form.acts.map((act, i) => (
+                  <div key={i} className="fir-row fir-row-acts" style={{ position: 'relative' }}>
+                    <span className="fir-row-label">({i + 1})</span>
                     <div className="fir-field">
                       <label className="fir-label">{i === 0 ? <span className="required">Act</span> : 'Act'}</label>
-                      <select className="form-select fir-input" required={i === 0} value={form.acts[i]?.act || 'IPC'} onChange={e => { setAct(i, 'act', e.target.value); setAct(i, 'sections', ''); }}>
+                      <select className="form-select fir-input" required={i === 0} value={act.act || 'IPC'} onChange={e => { setAct(i, 'act', e.target.value); setAct(i, 'sections', ''); }}>
                         <option value="">— Select —</option>
                         {!acts.some(a => a.ActCode === 'IPC') && <option value="IPC">IPC</option>}
                         {acts.map(a => <option key={a.ActCode} value={a.ActCode}>{a.ShortName}</option>)}
                       </select>
                     </div>
-                    <div className="fir-field">
+                    <div className="fir-field" style={{ position: 'relative' }}>
                       <label className="fir-label">{i === 0 ? <span className="required">Sections</span> : 'Sections'}</label>
-                      <input className="form-input fir-input" type="number" required={i === 0} value={form.acts[i]?.sections || ''} onChange={e => setAct(i, 'sections', e.target.value ? parseInt(e.target.value) : '')} placeholder="e.g. 302" />
+                      <input className="form-input fir-input" type="number" required={i === 0} value={act.sections || ''} onChange={e => setAct(i, 'sections', e.target.value ? parseInt(e.target.value) : '')} placeholder="e.g. 302" style={{ paddingRight: form.acts.length > 1 ? '40px' : '12px' }} />
+                      {form.acts.length > 1 && (
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => removeArrayItem('acts', i)} title="Remove" style={{ position: 'absolute', right: '4px', top: '24px', color: 'var(--text-muted)' }}>
+                          <span className="material-icons" style={{ fontSize: '18px' }}>close</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
+                {form.acts.length < 10 && (
+                  <div className="fir-row">
+                    <button type="button" className="btn btn-secondary btn-sm fir-add-person" onClick={() => addArrayItem('acts', { act: 'IPC', sections: '' })} style={{ marginTop: '4px', marginBottom: '12px' }}>
+                      <span className="material-icons">add</span> Add Another Act & Section
+                    </button>
+                  </div>
+                )}
                 <div className="fir-row">
-                  <span className="fir-row-label">(iv)</span>
+                  <span className="fir-row-label">({form.acts.length + 1})</span>
                   <div className="fir-field fir-field-full">
                     <label className="fir-label">Other Acts & Sections</label>
                     <input className="form-input fir-input" value={form.other_acts_sections} onChange={e => set('other_acts_sections', e.target.value)} placeholder="Other applicable acts and sections" />
                   </div>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── Section 3: Occurrence & Time ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">3</div>
+            <CollapsibleSection number="3" title="Occurrence & Time" filled={!!(form.occurrence_date)}>
               <div className="fir-subsections">
                 <div className="fir-subsection">
                   <span className="fir-row-label">(a)</span>
@@ -544,11 +661,10 @@ export default function ComplaintFormModal({
                   </div>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── Section 4: Type of Information ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">4</div>
+            <CollapsibleSection number="4" title="Type of Information" filled={!!form.type_of_information}>
               <div className="fir-row">
                 <div className="fir-field">
                   <label className="fir-label required">Type of Information</label>
@@ -563,23 +679,21 @@ export default function ComplaintFormModal({
                   </div>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── Section 8: Delay Reason ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">8</div>
+            <CollapsibleSection number="8" title="Delay in Reporting" filled={!!form.delay_reason}>
               <div className="fir-field fir-field-full">
                 <label className="fir-label">Reasons for delay in reporting</label>
                 <input className="form-input fir-input" value={form.delay_reason} onChange={e => set('delay_reason', e.target.value)} placeholder="Reason for delay, if any" />
               </div>
-            </div>
+            </CollapsibleSection>
             </div>
 
             {/* ── STEP 2: Location Details ── */}
             <div data-step="2" style={{ display: currentStep === 2 ? 'block' : 'none' }}>
             {/* ── Section 5: Place of Occurrence ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">5</div>
+            <CollapsibleSection number="5" title="Place of Occurrence" defaultOpen={true} filled={!!form.place_address}>
               <div className="fir-subsections">
                 <div className="fir-subsection">
                   <span className="fir-row-label">(a)</span>
@@ -624,16 +738,14 @@ export default function ComplaintFormModal({
                   </div>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             </div>
 
             {/* ── STEP 3: Parties Involved ── */}
             <div data-step="3" style={{ display: currentStep === 3 ? 'block' : 'none' }}>
             {/* ── Section 6: Complainant / Informant ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">6</div>
-              <div className="fir-section-title">Complainant / Informant Information</div>
+            <CollapsibleSection number="6" title="Complainant / Informant Information" defaultOpen={true} filled={!!form.complainant.name}>
               <div className="fir-subsections">
                 <div className="fir-row fir-row-photo">
                   <div className="fir-fields-col">
@@ -705,66 +817,114 @@ export default function ComplaintFormModal({
                   </div>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
-            {/* ── Section 7: Accused / Offender ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">7</div>
-              <div className="fir-section-title">Details of known / suspected / unknown / accused</div>
-              <div className="fir-row fir-row-photo">
-                <div className="fir-fields-col" style={{ flex: 1 }}>
-                  <textarea className="form-textarea fir-textarea" value={form.accused_details} onChange={e => set('accused_details', e.target.value)} placeholder="Attach separate sheet if necessary. Provide full description of the accused..." rows={4} />
-                  <div className="fir-row fir-row-3" style={{ marginTop: 10 }}>
-                    <div className="fir-field">
-                      <label className="fir-label">Offender Name</label>
-                      <input className="form-input fir-input" value={form.offender.name} onChange={e => setNested('offender', 'name', e.target.value)} placeholder="Name or Unknown" />
+            {/* ── Section 7: Accused / Offender (Multiple) ── */}
+            <CollapsibleSection number="7" title="Details of Accused / Offender" filled={form.offenders.some(o => o.name)}>
+              <div className="fir-field fir-field-full" style={{ marginBottom: 16 }}>
+                <label className="fir-label">General Description</label>
+                <textarea className="form-textarea fir-textarea" value={form.accused_details} onChange={e => set('accused_details', e.target.value)} placeholder="Attach separate sheet if necessary. Provide full description of the accused..." rows={3} />
+              </div>
+
+              <div className="fir-multi-persons">
+                {form.offenders.map((off, idx) => (
+                  <div key={idx} className="fir-person-card">
+                    <div className="fir-person-card-header">
+                      <span className="fir-person-badge">
+                        <span className="material-icons" style={{ fontSize: 14 }}>person</span>
+                        Accused {idx + 1}
+                      </span>
+                      {form.offenders.length > 1 && (
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm fir-remove-person" onClick={() => removeArrayItem('offenders', idx)} title="Remove">
+                          <span className="material-icons">close</span>
+                        </button>
+                      )}
                     </div>
-                    <div className="fir-field fir-field-sm">
-                      <label className="fir-label">Gender</label>
-                      <select className="form-select fir-input" value={form.offender.gender} onChange={e => setNested('offender', 'gender', e.target.value)}>
-                        <option>Male</option><option>Female</option><option>Other</option>
-                      </select>
-                    </div>
-                    <div className="fir-field fir-field-sm">
-                      <label className="fir-label">Age</label>
-                      <input className="form-input fir-input" type="number" min="0" value={form.offender.age} onChange={e => setNested('offender', 'age', e.target.value)} placeholder="Age" />
+                    <div className="fir-person-card-body">
+                      <div className="fir-row fir-row-photo">
+                        <div className="fir-fields-col" style={{ flex: 1 }}>
+                          <div className="fir-row fir-row-3">
+                            <div className="fir-field">
+                              <label className="fir-label">Name</label>
+                              <input className="form-input fir-input" value={off.name} onChange={e => setArrayItem('offenders', idx, 'name', e.target.value)} placeholder="Name or Unknown" />
+                            </div>
+                            <div className="fir-field fir-field-sm">
+                              <label className="fir-label">Gender</label>
+                              <select className="form-select fir-input" value={off.gender} onChange={e => setArrayItem('offenders', idx, 'gender', e.target.value)}>
+                                <option>Male</option><option>Female</option><option>Other</option>
+                              </select>
+                            </div>
+                            <div className="fir-field fir-field-sm">
+                              <label className="fir-label">Age</label>
+                              <input className="form-input fir-input" type="number" min="0" value={off.age} onChange={e => setArrayItem('offenders', idx, 'age', e.target.value)} placeholder="Age" />
+                            </div>
+                          </div>
+                        </div>
+                        <PhotoUpload label="Photo" value={(form.offender_photos || [])[idx]} onChange={v => setArrayPhoto('offender_photos', idx, v)} id={`offender-photo-${idx}`} />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <PhotoUpload label="Offender Photo" value={form.offender_photo} onChange={v => set('offender_photo', v)} id="offender-photo" />
+                ))}
+                {form.offenders.length < 10 && (
+                  <button type="button" className="btn btn-secondary btn-sm fir-add-person" onClick={() => addArrayItem('offenders', emptyOffender)}>
+                    <span className="material-icons">add</span> Add Another Accused
+                  </button>
+                )}
               </div>
-            </div>
+            </CollapsibleSection>
 
-            {/* ── Victim Section ── */}
-            <div className="fir-section">
-              <div className="fir-section-number" style={{ background: 'rgba(102,187,106,0.15)', color: '#66bb6a' }}>V</div>
-              <div className="fir-section-title">Victim Information</div>
-              <div className="fir-row fir-row-photo">
-                <div className="fir-fields-col" style={{ flex: 1 }}>
-                  <div className="fir-row fir-row-4">
-                    <div className="fir-field">
-                      <label className="fir-label">Name</label>
-                      <input className="form-input fir-input" value={form.victim.name} onChange={e => setNested('victim', 'name', e.target.value)} placeholder="Victim name" />
+            {/* ── Victim Section (Multiple) ── */}
+            <CollapsibleSection number="V" title="Victim Information" filled={form.victims.some(v => v.name)} numberStyle={{ background: 'rgba(102,187,106,0.15)', color: '#66bb6a' }}>
+              <div className="fir-multi-persons">
+                {form.victims.map((vic, idx) => (
+                  <div key={idx} className="fir-person-card fir-person-card-victim">
+                    <div className="fir-person-card-header">
+                      <span className="fir-person-badge fir-person-badge-victim">
+                        <span className="material-icons" style={{ fontSize: 14 }}>person</span>
+                        Victim {idx + 1}
+                      </span>
+                      {form.victims.length > 1 && (
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm fir-remove-person" onClick={() => removeArrayItem('victims', idx)} title="Remove">
+                          <span className="material-icons">close</span>
+                        </button>
+                      )}
                     </div>
-                    <div className="fir-field fir-field-sm">
-                      <label className="fir-label">Age</label>
-                      <input className="form-input fir-input" type="number" min="0" value={form.victim.age} onChange={e => setNested('victim', 'age', e.target.value)} />
-                    </div>
-                    <div className="fir-field fir-field-sm">
-                      <label className="fir-label">Gender</label>
-                      <select className="form-select fir-input" value={form.victim.gender} onChange={e => setNested('victim', 'gender', e.target.value)}>
-                        <option value="">—</option><option>Male</option><option>Female</option><option>Other</option>
-                      </select>
-                    </div>
-                    <div className="fir-field">
-                      <label className="fir-label">Occupation</label>
-                      <input className="form-input fir-input" list="occupation-list" value={form.victim.occupation} onChange={e => setNested('victim', 'occupation', e.target.value)} placeholder="Start typing..." />
+                    <div className="fir-person-card-body">
+                      <div className="fir-row fir-row-photo">
+                        <div className="fir-fields-col" style={{ flex: 1 }}>
+                          <div className="fir-row fir-row-4">
+                            <div className="fir-field">
+                              <label className="fir-label">Name</label>
+                              <input className="form-input fir-input" value={vic.name} onChange={e => setArrayItem('victims', idx, 'name', e.target.value)} placeholder="Victim name" />
+                            </div>
+                            <div className="fir-field fir-field-sm">
+                              <label className="fir-label">Age</label>
+                              <input className="form-input fir-input" type="number" min="0" value={vic.age} onChange={e => setArrayItem('victims', idx, 'age', e.target.value)} />
+                            </div>
+                            <div className="fir-field fir-field-sm">
+                              <label className="fir-label">Gender</label>
+                              <select className="form-select fir-input" value={vic.gender} onChange={e => setArrayItem('victims', idx, 'gender', e.target.value)}>
+                                <option value="">—</option><option>Male</option><option>Female</option><option>Other</option>
+                              </select>
+                            </div>
+                            <div className="fir-field">
+                              <label className="fir-label">Occupation</label>
+                              <input className="form-input fir-input" list="occupation-list" value={vic.occupation} onChange={e => setArrayItem('victims', idx, 'occupation', e.target.value)} placeholder="Start typing..." />
+                            </div>
+                          </div>
+                        </div>
+                        <PhotoUpload label="Photo" value={(form.victim_photos || [])[idx]} onChange={v => setArrayPhoto('victim_photos', idx, v)} id={`victim-photo-${idx}`} />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <PhotoUpload label="Victim Photo" value={form.victim_photo} onChange={v => set('victim_photo', v)} id="victim-photo" />
+                ))}
+                {form.victims.length < 10 && (
+                  <button type="button" className="btn btn-secondary btn-sm fir-add-person" onClick={() => addArrayItem('victims', emptyVictim)}>
+                    <span className="material-icons">add</span> Add Another Victim
+                  </button>
+                )}
               </div>
-            </div>
+            </CollapsibleSection>
 
 
             </div>
@@ -772,48 +932,155 @@ export default function ComplaintFormModal({
             {/* ── STEP 4: Stolen Property & Inquest ── */}
             <div data-step="4" style={{ display: currentStep === 4 ? 'block' : 'none' }}>
             {/* ── Section 9: Properties Stolen ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">9</div>
+            <CollapsibleSection number="9" title="Properties Stolen / Involved" defaultOpen={true} filled={!!form.properties_stolen}>
               <div className="fir-field fir-field-full">
                 <label className="fir-label">Particulars of properties stolen / involved</label>
                 <textarea className="form-textarea fir-textarea" value={form.properties_stolen} onChange={e => set('properties_stolen', e.target.value)} placeholder="List of stolen/involved properties..." rows={3} />
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── Section 10: Total Value ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">10</div>
+            <CollapsibleSection number="10" title="Total Value" filled={!!form.total_value_stolen}>
               <div className="fir-field fir-field-full">
                 <label className="fir-label">Total value of the properties stolen / involved (₹)</label>
                 <input className="form-input fir-input" value={form.total_value_stolen} onChange={e => set('total_value_stolen', e.target.value)} placeholder="e.g. 3,50,000" />
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── Section 11: Inquest Report ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">11</div>
+            <CollapsibleSection number="11" title="Inquest Report" filled={!!form.inquest_report}>
               <div className="fir-field fir-field-full">
                 <label className="fir-label required">Inquest Report / U.D. Case No.</label>
                 <input className="form-input fir-input" required value={form.inquest_report} onChange={e => set('inquest_report', e.target.value)} placeholder="UD case number or N/A" />
               </div>
-            </div>
+            </CollapsibleSection>
 
             </div>
 
-            {/* ── STEP 5: Review & Submit ── */}
+            {/* ── STEP 5: Post-Incident Actions ── */}
             <div data-step="5" style={{ display: currentStep === 5 ? 'block' : 'none' }}>
+              <CollapsibleSection number="P1" title="Arrest / Surrender Details" filled={form.arrests.length > 0} numberStyle={{ background: 'rgba(25,118,210,0.15)', color: '#1976d2' }}>
+                <div className="fir-multi-persons">
+                  {form.arrests.map((arr, idx) => (
+                    <div key={idx} className="fir-person-card">
+                      <div className="fir-person-card-header">
+                        <span className="fir-person-badge" style={{ background: '#e3f2fd', color: '#1976d2' }}>Event {idx + 1}</span>
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm fir-remove-person" onClick={() => removeArrayItem('arrests', idx)} title="Remove"><span className="material-icons">close</span></button>
+                      </div>
+                      <div className="fir-person-card-body">
+                        <div className="fir-row fir-row-4">
+                          <div className="fir-field">
+                            <label className="fir-label required">Type</label>
+                            <select className="form-select fir-input" required value={arr.type} onChange={e => setArrayItem('arrests', idx, 'type', e.target.value)}>
+                              <option value="">— Select —</option>
+                              <option value="1">Arrest</option>
+                              <option value="2">Surrender</option>
+                            </select>
+                          </div>
+                          <div className="fir-field">
+                            <label className="fir-label required">Date</label>
+                            <input className="form-input fir-input" type="date" required value={arr.date} onChange={e => setArrayItem('arrests', idx, 'date', e.target.value)} />
+                          </div>
+                          <div className="fir-field">
+                            <label className="fir-label">State</label>
+                            <select className="form-select fir-input" value={arr.state} onChange={e => setArrayItem('arrests', idx, 'state', e.target.value)}>
+                              <option value="">— Select —</option>
+                              {states.map(s => <option key={s.StateID} value={s.StateID}>{s.StateName}</option>)}
+                            </select>
+                          </div>
+                          <div className="fir-field">
+                            <label className="fir-label">District</label>
+                            <select className="form-select fir-input" value={arr.district} onChange={e => setArrayItem('arrests', idx, 'district', e.target.value)}>
+                              <option value="">— Select —</option>
+                              {districts.map(d => <option key={d.DistrictID} value={d.DistrictID}>{d.DistrictName}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="fir-row fir-row-3">
+                          <div className="fir-field">
+                            <label className="fir-label">Police Station</label>
+                            <select className="form-select fir-input" value={arr.ps} onChange={e => setArrayItem('arrests', idx, 'ps', e.target.value)}>
+                              <option value="">— Select —</option>
+                              {units.map(u => <option key={u.UnitID} value={u.UnitID}>{u.UnitName}</option>)}
+                            </select>
+                          </div>
+                          <div className="fir-field">
+                            <label className="fir-label">Investigating Officer (IO)</label>
+                            <select className="form-select fir-input" value={arr.io} onChange={e => setArrayItem('arrests', idx, 'io', e.target.value)}>
+                              <option value="">— Select —</option>
+                              {employees.map(e => <option key={e.EmployeeID} value={e.EmployeeID}>{e.FirstName}</option>)}
+                            </select>
+                          </div>
+                          <div className="fir-field">
+                            <label className="fir-label">Court</label>
+                            <select className="form-select fir-input" value={arr.court} onChange={e => setArrayItem('arrests', idx, 'court', e.target.value)}>
+                              <option value="">— Select —</option>
+                              {courts.map(c => <option key={c.CourtID} value={c.CourtID}>{c.CourtName}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary btn-sm fir-add-person" onClick={() => addArrayItem('arrests', { date: '', type: '', state: '', district: '', ps: '', io: '', court: '' })}>
+                    <span className="material-icons">add</span> Add Arrest/Surrender
+                  </button>
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection number="P2" title="Chargesheet Details" filled={form.chargesheets.length > 0} numberStyle={{ background: 'rgba(25,118,210,0.15)', color: '#1976d2' }}>
+                <div className="fir-multi-persons">
+                  {form.chargesheets.map((cs, idx) => (
+                    <div key={idx} className="fir-person-card">
+                      <div className="fir-person-card-header">
+                        <span className="fir-person-badge" style={{ background: '#e3f2fd', color: '#1976d2' }}>Chargesheet {idx + 1}</span>
+                        <button type="button" className="btn btn-ghost btn-icon btn-sm fir-remove-person" onClick={() => removeArrayItem('chargesheets', idx)} title="Remove"><span className="material-icons">close</span></button>
+                      </div>
+                      <div className="fir-person-card-body">
+                        <div className="fir-row fir-row-3">
+                          <div className="fir-field">
+                            <label className="fir-label required">Date</label>
+                            <input className="form-input fir-input" type="date" required value={cs.date} onChange={e => setArrayItem('chargesheets', idx, 'date', e.target.value)} />
+                          </div>
+                          <div className="fir-field">
+                            <label className="fir-label">Type</label>
+                            <select className="form-select fir-input" value={cs.type} onChange={e => setArrayItem('chargesheets', idx, 'type', e.target.value)}>
+                              <option value="">— Select —</option>
+                              <option value="A">A - Chargesheet</option>
+                              <option value="B">B - False Case</option>
+                              <option value="C">C - Undetected</option>
+                            </select>
+                          </div>
+                          <div className="fir-field">
+                            <label className="fir-label">Officer</label>
+                            <select className="form-select fir-input" value={cs.io} onChange={e => setArrayItem('chargesheets', idx, 'io', e.target.value)}>
+                              <option value="">— Select —</option>
+                              {employees.map(e => <option key={e.EmployeeID} value={e.EmployeeID}>{e.FirstName}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary btn-sm fir-add-person" onClick={() => addArrayItem('chargesheets', { date: '', type: '', io: '' })}>
+                    <span className="material-icons">add</span> Add Chargesheet
+                  </button>
+                </div>
+              </CollapsibleSection>
+            </div>
+
+            {/* ── STEP 6: Review & Submit ── */}
+            <div data-step="6" style={{ display: currentStep === 6 ? 'block' : 'none' }}>
             {/* ── Section 12: FIR Contents ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">12</div>
+            <CollapsibleSection number="12" title="F.I.R. Contents" defaultOpen={true} filled={!!form.fir_contents}>
               <div className="fir-field fir-field-full">
                 <label className="fir-label">F.I.R. Contents</label>
                 <textarea className="form-textarea fir-textarea fir-textarea-lg" value={form.fir_contents} onChange={e => set('fir_contents', e.target.value)} placeholder="Detailed description of the incident..." rows={8} />
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── Section 13: Action Taken ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">13</div>
+            <CollapsibleSection number="13" title="Action Taken" filled={!!form.action_taken}>
               <div className="fir-field fir-field-full">
                 <label className="fir-label">Action taken</label>
                 <p className="fir-action-text">Since the above report reveals commission of offence(s) u/s as mentioned at Item No. 2, registered the case and took up the investigation / direction:</p>
@@ -821,26 +1088,62 @@ export default function ComplaintFormModal({
               </div>
               <div className="fir-signature-block">
                 <div className="fir-signature-title">Officer-in-charge, Police Station</div>
-                <div className="fir-row fir-row-3">
-                  <div className="fir-field">
-                    <label className="fir-label">Name</label>
-                    <input className="form-input fir-input" value={form.officer_name} onChange={e => set('officer_name', e.target.value)} placeholder="Auto-filled" disabled title="Auto-filled from your profile" />
+                {officerProfile ? (
+                  <div className="fir-officer-card">
+                    <div className="fir-officer-card-photo">
+                      {officerProfile.photo_url ? (
+                        <img src={officerProfile.photo_url} alt={officerProfile.officer_name} className="fir-officer-photo-img" />
+                      ) : (
+                        <div className="fir-officer-photo-placeholder">
+                          <span className="material-icons">person</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="fir-officer-card-details">
+                      <div className="fir-row fir-row-3">
+                        <div className="fir-field">
+                          <label className="fir-label">Name</label>
+                          <input className="form-input fir-input fir-input-autofilled" value={form.officer_name} readOnly disabled title="Auto-filled from your profile" />
+                        </div>
+                        <div className="fir-field">
+                          <label className="fir-label">Rank</label>
+                          <input className="form-input fir-input fir-input-autofilled" value={form.officer_rank} readOnly disabled title="Auto-filled from your profile" />
+                        </div>
+                        <div className="fir-field">
+                          <label className="fir-label">No. (KGID)</label>
+                          <input className="form-input fir-input fir-input-autofilled" value={form.officer_no} readOnly disabled title="Auto-filled from your profile" />
+                        </div>
+                      </div>
+                      {form.officer_unit && (
+                        <div className="fir-row" style={{ marginTop: 8 }}>
+                          <div className="fir-field fir-field-full">
+                            <label className="fir-label">Police Station / Unit</label>
+                            <input className="form-input fir-input fir-input-autofilled" value={form.officer_unit} readOnly disabled title="Auto-filled from your profile" />
+                          </div>
+                        </div>
+                      )}
+                      <div className="fir-autofill-badge">
+                        <span className="material-icons">auto_awesome</span>
+                        <span>Auto-filled from your profile</span>
+                        <a href="/profile" target="_blank" rel="noopener noreferrer" className="fir-autofill-link">Edit Profile</a>
+                      </div>
+                    </div>
                   </div>
-                  <div className="fir-field">
-                    <label className="fir-label">Rank</label>
-                    <input className="form-input fir-input" value={form.officer_rank} onChange={e => set('officer_rank', e.target.value)} placeholder="Auto-filled" disabled title="Auto-filled from your profile" />
+                ) : (
+                  <div className="fir-officer-no-profile">
+                    <span className="material-icons">warning</span>
+                    <div>
+                      <strong>Profile not set up</strong>
+                      <p>Your officer details will appear here once you set up your profile.</p>
+                    </div>
+                    <a href="/profile" className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }}>Set Up Profile</a>
                   </div>
-                  <div className="fir-field">
-                    <label className="fir-label">No.</label>
-                    <input className="form-input fir-input" value={form.officer_no} onChange={e => set('officer_no', e.target.value)} placeholder="Auto-filled" disabled title="Auto-filled from your profile" />
-                  </div>
-                </div>
+                )}
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── Section 14: Complainant Signature ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">14</div>
+            <CollapsibleSection number="14" title="Complainant Signature">
               <div className="fir-row fir-row-2">
                 <div className="fir-field">
                   <label className="fir-label">Signature / Thumb-impression of complainant</label>
@@ -850,11 +1153,10 @@ export default function ComplaintFormModal({
                   <div className="fir-signature-pad"><span className="material-icons">edit</span><span>Signature</span></div>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── Section 15: Despatch to Court ── */}
-            <div className="fir-section">
-              <div className="fir-section-number">15</div>
+            <CollapsibleSection number="15" title="Despatch to Court">
               <div className="fir-row fir-row-2">
                 <div className="fir-field">
                   <label className="fir-label">Despatch to court (1)</label>
@@ -865,40 +1167,26 @@ export default function ComplaintFormModal({
                   <input className="form-input fir-input" type="datetime-local" value={form.despatch_date_2} onChange={e => set('despatch_date_2', e.target.value)} />
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             {/* ── System Fields ── */}
-            <div className="fir-section fir-section-system">
-              <div className="fir-section-number" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-muted)' }}>
-                <span className="material-icons" style={{ fontSize: 14 }}>settings</span>
-              </div>
-              <div className="fir-section-title">System Fields (Data Layers)</div>
-              <div className="fir-row fir-row-5">
-                <div className="fir-field">
-                  <label className="fir-label">Case Category</label>
-                  <input list="case-categories-list" className="form-input fir-input" value={form.case_category} onChange={e => set('case_category', e.target.value)} placeholder="Type category..." />
-                  <datalist id="case-categories-list">
-                    {caseCategories.map(c => <option key={c.CaseCategoryID} value={c.LookupValue} />)}
-                  </datalist>
-                </div>
+            <CollapsibleSection number={<span className="material-icons" style={{ fontSize: 14 }}>settings</span>} title="System Fields (Data Layers)" numberStyle={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-muted)' }}>
+              <div className="fir-row fir-row-3">
                 <div className="fir-field">
                   <label className="fir-label">Crime Type</label>
-                  <input list="crime-types-list" className="form-input fir-input" value={form.crime_type} onChange={e => { set('crime_type', e.target.value); set('crime_sub_head', ''); }} placeholder="Type crime type..." />
+                  <input list="crime-types-list" className="form-input fir-input" value={form.crime_type} onChange={e => set('crime_type', e.target.value)} placeholder="Type crime type..." />
                   <datalist id="crime-types-list">
                     {crimeHeads.map(c => <option key={c.CrimeHeadID} value={c.CrimeGroupName} />)}
-                  </datalist>
-                </div>
-                <div className="fir-field">
-                  <label className="fir-label">Sub Head</label>
-                  <input list="sub-heads-list" className="form-input fir-input" value={form.crime_sub_head} onChange={e => set('crime_sub_head', e.target.value)} placeholder="Type sub head..." />
-                  <datalist id="sub-heads-list">
-                    {filteredSubHeads.map(s => <option key={s.CrimeSubHeadID} value={s.CrimeHeadName} />)}
                   </datalist>
                 </div>
                 <div className="fir-field fir-field-sm">
                   <label className="fir-label">Severity</label>
                   <select className="form-select fir-input" value={form.severity} onChange={e => set('severity', e.target.value)}>
-                    {gravityLevels.map(g => <option key={g.GravityOffenceID} value={g.GravityOffenceID}>{g.GravityOffenceID} — {g.LookupValue}</option>)}
+                    {gravityLevels.map(g => (
+                      <option key={g.GravityOffenceID} value={g.GravityOffenceID}>
+                        {g.GravityOffenceID} {g.LookupValue ? `— ${g.LookupValue}` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="fir-field">
@@ -923,7 +1211,7 @@ export default function ComplaintFormModal({
                   <input className="form-input fir-input" value={form.description} onChange={e => set('description', e.target.value)} placeholder="Brief summary" />
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             </div>
 
@@ -942,11 +1230,11 @@ export default function ComplaintFormModal({
                 <button type="button" className="btn btn-secondary" onClick={handleBack}>Back</button>
               )}
               {currentStep < totalSteps ? (
-                <button type="button" className="btn btn-primary" onClick={handleNext}>
+                <button key="next-btn" type="button" className="btn btn-primary" onClick={(e) => { e.preventDefault(); handleNext(); }}>
                   Next <span className="material-icons">chevron_right</span>
                 </button>
               ) : (
-                <button type="submit" className="btn btn-primary" disabled={saving}>
+                <button key="submit-btn" type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? (
                     <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Saving…</>
                   ) : (

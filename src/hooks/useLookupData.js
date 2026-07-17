@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback } from 'react';
 import { create } from 'zustand';
 import { supabase } from '../supabaseClient';
 
@@ -14,6 +14,14 @@ const useLookupStore = create((set) => ({
   sections: [],
   occupations: [],
   units: [],
+  religions: [],
+  castes: [],
+  states: [],
+  unitTypes: [],
+  courts: [],
+  employees: [],
+  designations: [],
+  ranks: [],
   loaded: false,
   loading: false,
   error: null,
@@ -78,6 +86,14 @@ export function useLookupData() {
         { data: sections },
         { data: occupations },
         { data: units },
+        { data: religions },
+        { data: castes },
+        { data: states },
+        { data: unitTypes },
+        { data: courts },
+        { data: employees },
+        { data: designations },
+        { data: ranks },
       ] = await Promise.all([
         supabase.from('District').select('*').eq('Active', '1').order('DistrictName'),
         supabase.from('CrimeHead').select('*').eq('Active', '1').order('CrimeGroupName'),
@@ -89,6 +105,14 @@ export function useLookupData() {
         supabase.from('Section').select('*').eq('Active', '1').order('SectionCode'),
         supabase.from('OccupationMaster').select('*').order('OccupationName'),
         supabase.from('Unit').select('*').eq('Active', '1').order('UnitName'),
+        supabase.from('ReligionMaster').select('*').order('ReligionName'),
+        supabase.from('CasteMaster').select('*').order('caste_master_name'),
+        supabase.from('State').select('*').order('StateName'),
+        supabase.from('UnitType').select('*').order('UnitTypeName'),
+        supabase.from('Court').select('*').order('CourtName'),
+        supabase.from('Employee').select('*').order('FirstName'),
+        supabase.from('Designation').select('*').order('DesignationName'),
+        supabase.from('Rank').select('*').order('RankName'),
       ]);
 
       // Enrich districts with coordinates
@@ -100,17 +124,40 @@ export function useLookupData() {
         name: d.DistrictName,
       }));
 
+      const fallbackStatuses = (statuses && statuses.length > 0) ? statuses : [
+        { CaseStatusID: 1, CaseStatusName: 'Open / Registered' },
+        { CaseStatusID: 2, CaseStatusName: 'Under Investigation' },
+        { CaseStatusID: 3, CaseStatusName: 'Charge Sheeted' },
+        { CaseStatusID: 4, CaseStatusName: 'Closed' }
+      ];
+
+      const fallbackGravity = (gravityLevels && gravityLevels.length > 0) ? gravityLevels : [
+        { GravityOffenceID: 1, LookupValue: '(Lowest)' },
+        { GravityOffenceID: 2, LookupValue: '' },
+        { GravityOffenceID: 3, LookupValue: '' },
+        { GravityOffenceID: 4, LookupValue: '' },
+        { GravityOffenceID: 5, LookupValue: '(Highest)' }
+      ];
+
       const s = useLookupStore.getState();
       s.setData('districts', enrichedDistricts);
       s.setData('crimeHeads', crimeHeads || []);
       s.setData('crimeSubHeads', crimeSubHeads || []);
-      s.setData('statuses', statuses || []);
-      s.setData('gravityLevels', gravityLevels || []);
+      s.setData('statuses', fallbackStatuses);
+      s.setData('gravityLevels', fallbackGravity);
       s.setData('caseCategories', caseCategories || []);
       s.setData('acts', acts || []);
       s.setData('sections', sections || []);
       s.setData('occupations', occupations || []);
       s.setData('units', units || []);
+      s.setData('religions', religions || []);
+      s.setData('castes', castes || []);
+      s.setData('states', states || []);
+      s.setData('unitTypes', unitTypes || []);
+      s.setData('courts', courts || []);
+      s.setData('employees', employees || []);
+      s.setData('designations', designations || []);
+      s.setData('ranks', ranks || []);
       s.setLoaded();
     } catch (err) {
       console.error('Failed to fetch lookup data:', err);
@@ -166,21 +213,11 @@ export function useLookupData() {
     return a?.ShortName || String(code || '—');
   }, [store.acts]);
 
-  const getSectionDesc = useCallback((code) => {
-    const s = store.sections.find(s => s.SectionCode === code);
-    return s?.SectionDescription || String(code || '—');
-  }, [store.sections]);
-
   // ── Filtered list helpers ─────────────────────────────────
   const getUnitsByDistrict = useCallback((districtId) => {
     if (!districtId) return store.units;
     return store.units.filter(u => u.DistrictID === districtId);
   }, [store.units]);
-
-  const getSubHeadsByCrimeHead = useCallback((crimeHeadId) => {
-    if (!crimeHeadId) return [];
-    return store.crimeSubHeads.filter(s => s.CrimeHeadID === crimeHeadId);
-  }, [store.crimeSubHeads]);
 
   const getSectionsByAct = useCallback((actCode) => {
     if (!actCode) return [];
@@ -199,6 +236,14 @@ export function useLookupData() {
     sections: store.sections,
     occupations: store.occupations,
     units: store.units,
+    religions: store.religions,
+    castes: store.castes,
+    states: store.states,
+    unitTypes: store.unitTypes,
+    courts: store.courts,
+    employees: store.employees,
+    designations: store.designations,
+    ranks: store.ranks,
     loaded: store.loaded,
     loading: store.loading,
 
@@ -212,11 +257,9 @@ export function useLookupData() {
     getCategoryName,
     getOccupationName,
     getActName,
-    getSectionDesc,
 
     // Filtered lists
     getUnitsByDistrict,
-    getSubHeadsByCrimeHead,
     getSectionsByAct,
   };
 }

@@ -88,14 +88,18 @@ export default function ReportsPage() {
   };
 
   const exportCSV = () => {
-    const headers = ['FIR Number', 'Crime Type', 'District', 'Police Station', 'Complainant', 'Offender', 'Victim', 'Status', 'Severity', 'Occurred At'];
+    const headers = ['FIR Number', 'Crime Type', 'District', 'Police Station', 'Complainant', 'Offender(s)', 'Victim(s)', 'Status', 'Severity', 'Occurred At'];
     const rows = filtered.map(i => {
       const comp = i._complainant || i.complaint_data?.complainant || {};
-      const off = i._accused || i.complaint_data?.offender || {};
-      const vic = i._victim || i.complaint_data?.victim || {};
+      // Join all accused names
+      const accNames = (i._accusedAll || []).map(a => a.AccusedName).filter(Boolean);
+      const offName = accNames.length > 0 ? accNames.join('; ') : (i._accused?.AccusedName || i.complaint_data?.offender?.name || '');
+      // Join all victim names
+      const vicNames = (i._victims || []).map(v => v.VictimName).filter(Boolean);
+      const vicName = vicNames.length > 0 ? vicNames.join('; ') : (i._victim?.VictimName || i.complaint_data?.victim?.name || '');
       return [
         i.CrimeNo, getCrimeTypeName(i.CrimeMajorHeadID), getDistrictName(i.DistrictID), getUnitName(i.PoliceStationID),
-        comp.ComplainantName || comp.name || '', off.AccusedName || off.name || '', vic.VictimName || vic.name || '',
+        comp.ComplainantName || comp.name || '', offName, vicName,
         getStatusName(i.CaseStatusID), i.GravityOffenceID, new Date(i.IncidentFromDate).toLocaleString('en-IN'),
       ];
     });

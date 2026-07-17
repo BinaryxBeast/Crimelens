@@ -1,5 +1,0 @@
-Column Name,Type,Key,Description
-DesignationID,INT,PK,"Primary key — unique identifier for the designation. Referenced by Employee.DesignationID"
-DesignationName,VARCHAR,,"Name of the designation (e.g. Investigating Officer, SHO)"
-Active,BIT,,"Whether the designation is active (1=Active, 0=Inactive)"
-SortOrder,INT,,"Display sort order for dropdowns/reports"

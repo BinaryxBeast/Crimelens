@@ -1,3 +1,0 @@
-Column Name,Type,Key,Description
-caste_master_id,INT,PK,"Primary key — unique identifier for each caste. Referenced by ComplainantDetails.CasteID"
-caste_master_name,VARCHAR,,"Name of the caste"

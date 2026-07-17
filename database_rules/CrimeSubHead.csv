@@ -1,5 +1,0 @@
-Column Name,Type,Key,Description
-CrimeSubHeadID,INT,PK,"Primary key — unique identifier for the crime sub-head"
-CrimeHeadID,INT,FK,"FK → CrimeHead.CrimeHeadID — parent major crime head this belongs to"
-CrimeHeadName,VARCHAR,,"Name of this crime sub-head (e.g. Murder, Robbery)"
-SeqID,INT,,"Display/sort sequence number for ordering sub-heads"

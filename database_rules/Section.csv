@@ -1,5 +1,0 @@
-Column Name,Type,Key,Description
-ActCode,VARCHAR,FK,"FK → Act.ActCode — parent act this section belongs to"
-SectionCode,VARCHAR,,"Section number/code (e.g. 302, 307)"
-SectionDescription,VARCHAR,,"Full description of the section"
-Active,BIT,,"Whether the section is currently active (1=Active, 0=Inactive)"
