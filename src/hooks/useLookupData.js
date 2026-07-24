@@ -213,6 +213,21 @@ export function useLookupData() {
     return a?.ShortName || String(code || '—');
   }, [store.acts]);
 
+  const getStateName = useCallback((id) => {
+    const s = store.states.find(s => s.StateID === id);
+    return s?.StateName || String(id || '—');
+  }, [store.states]);
+
+  const getCourtName = useCallback((id) => {
+    const c = store.courts.find(c => c.CourtID === id);
+    return c?.CourtName || String(id || '—');
+  }, [store.courts]);
+
+  const getEmployeeName = useCallback((id) => {
+    const e = store.employees.find(e => e.EmployeeID === id);
+    return e?.FirstName || String(id || '—');
+  }, [store.employees]);
+
   // ── Filtered list helpers ─────────────────────────────────
   const getUnitsByDistrict = useCallback((districtId) => {
     if (!districtId) return store.units;
@@ -257,6 +272,9 @@ export function useLookupData() {
     getCategoryName,
     getOccupationName,
     getActName,
+    getStateName,
+    getCourtName,
+    getEmployeeName,
 
     // Filtered lists
     getUnitsByDistrict,

@@ -271,6 +271,16 @@ export default function ComplaintFormModal({
         if (initialForm.crime_type && !isNaN(initialForm.crime_type)) {
           initialForm.crime_type = crimeHeads.find(c => c.CrimeHeadID === parseInt(initialForm.crime_type))?.CrimeGroupName || initialForm.crime_type;
         }
+
+        if (!initialForm.officer_name && editRow.PolicePersonID) {
+          const emp = employees.find(e => e.EmployeeID === editRow.PolicePersonID);
+          if (emp) {
+            initialForm.officer_name = emp.FirstName || '';
+            initialForm.officer_no = emp.KGID || '';
+            initialForm.officer_rank = ranks.find(r => r.RankID === emp.RankID)?.RankName || '';
+            initialForm.officer_unit = units.find(u => u.UnitID === emp.UnitID)?.UnitName || '';
+          }
+        }
       }
 
       if (!isEdit) {
@@ -1088,11 +1098,11 @@ export default function ComplaintFormModal({
               </div>
               <div className="fir-signature-block">
                 <div className="fir-signature-title">Officer-in-charge, Police Station</div>
-                {officerProfile ? (
+                {(isEdit ? form.officer_name : officerProfile) ? (
                   <div className="fir-officer-card">
                     <div className="fir-officer-card-photo">
-                      {officerProfile.photo_url ? (
-                        <img src={officerProfile.photo_url} alt={officerProfile.officer_name} className="fir-officer-photo-img" />
+                      {form.officer_photo_url ? (
+                        <img src={form.officer_photo_url} alt={form.officer_name || 'Officer'} className="fir-officer-photo-img" />
                       ) : (
                         <div className="fir-officer-photo-placeholder">
                           <span className="material-icons">person</span>
@@ -1103,30 +1113,40 @@ export default function ComplaintFormModal({
                       <div className="fir-row fir-row-3">
                         <div className="fir-field">
                           <label className="fir-label">Name</label>
-                          <input className="form-input fir-input fir-input-autofilled" value={form.officer_name} readOnly disabled title="Auto-filled from your profile" />
+                          <input className="form-input fir-input fir-input-autofilled" value={form.officer_name} readOnly disabled title={isEdit ? '' : 'Auto-filled from your profile'} />
                         </div>
                         <div className="fir-field">
                           <label className="fir-label">Rank</label>
-                          <input className="form-input fir-input fir-input-autofilled" value={form.officer_rank} readOnly disabled title="Auto-filled from your profile" />
+                          <input className="form-input fir-input fir-input-autofilled" value={form.officer_rank} readOnly disabled title={isEdit ? '' : 'Auto-filled from your profile'} />
                         </div>
                         <div className="fir-field">
                           <label className="fir-label">No. (KGID)</label>
-                          <input className="form-input fir-input fir-input-autofilled" value={form.officer_no} readOnly disabled title="Auto-filled from your profile" />
+                          <input className="form-input fir-input fir-input-autofilled" value={form.officer_no} readOnly disabled title={isEdit ? '' : 'Auto-filled from your profile'} />
                         </div>
                       </div>
                       {form.officer_unit && (
                         <div className="fir-row" style={{ marginTop: 8 }}>
                           <div className="fir-field fir-field-full">
                             <label className="fir-label">Police Station / Unit</label>
-                            <input className="form-input fir-input fir-input-autofilled" value={form.officer_unit} readOnly disabled title="Auto-filled from your profile" />
+                            <input className="form-input fir-input fir-input-autofilled" value={form.officer_unit} readOnly disabled title={isEdit ? '' : 'Auto-filled from your profile'} />
                           </div>
                         </div>
                       )}
-                      <div className="fir-autofill-badge">
-                        <span className="material-icons">auto_awesome</span>
-                        <span>Auto-filled from your profile</span>
-                        <a href="/profile" target="_blank" rel="noopener noreferrer" className="fir-autofill-link">Edit Profile</a>
-                      </div>
+                      {!isEdit && (
+                        <div className="fir-autofill-badge">
+                          <span className="material-icons">auto_awesome</span>
+                          <span>Auto-filled from your profile</span>
+                          <a href="/profile" target="_blank" rel="noopener noreferrer" className="fir-autofill-link">Edit Profile</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : isEdit ? (
+                  <div className="fir-officer-no-profile" style={{ background: 'var(--bg-panel)', color: 'var(--text-muted)' }}>
+                    <span className="material-icons">info</span>
+                    <div>
+                      <strong>No Officer Info</strong>
+                      <p>No officer details were saved for this complaint.</p>
                     </div>
                   </div>
                 ) : (

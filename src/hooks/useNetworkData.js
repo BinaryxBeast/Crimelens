@@ -23,6 +23,7 @@ export function useNetworkData() {
       const stationNodes = {};
       const offenderNodes = {};
       const victimNodes = {};
+      const officerNodes = {};
 
       const stationDistrictLinks = new Set();
 
@@ -151,6 +152,29 @@ export function useNetworkData() {
               type: 'victim',
             });
           }
+        }
+
+        // Officer Node
+        const officerName = cd.officer_name || cd.investigating_officer?.name || cd.investigating_officer;
+        if (officerName && typeof officerName === 'string') {
+          let officerKey = officerName.toLowerCase().trim().replace(/\s+/g, '_');
+          if (!officerNodes[officerKey]) {
+            const offNodeId = `officer-${officerKey}`;
+            officerNodes[officerKey] = offNodeId;
+            graphNodes.push({
+              id: offNodeId,
+              label: officerName,
+              type: 'officer',
+              rank: cd.officer_rank || '',
+              val: 4,
+            });
+          }
+          // Link Incident -> Officer
+          graphLinks.push({
+            source: incNodeId,
+            target: officerNodes[officerKey],
+            type: 'investigated_by',
+          });
         }
       });
 

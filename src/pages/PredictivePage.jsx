@@ -1,14 +1,30 @@
+import { useMemo } from 'react';
 import { useCrimeData } from '../hooks/useCrimeData';
 import { useLookupData } from '../hooks/useLookupData';
 import { useAnomalyDetection } from '../hooks/useAnomalyDetection';
+import { useCaseLinkage } from '../hooks/useCaseLinkage';
 import RiskScoreCard from '../components/RiskScoreCard';
 import AnomalyAlert from '../components/AnomalyAlert';
+import CaseLinkagePanel from '../components/CaseLinkagePanel';
 import { RiskTrendLine } from '../components/TrendChart';
 
 export default function PredictivePage() {
   const { incidents, loading } = useCrimeData();
-  const { districts } = useLookupData();
+  const { districts, getDistrictName, getCrimeTypeName } = useLookupData();
   const { anomalies, riskScores } = useAnomalyDetection(incidents, districts);
+
+  // Memoize resolvers object to avoid unnecessary re-renders
+  const resolvers = useMemo(() => ({
+    getDistrictName,
+    getCrimeTypeName,
+  }), [getDistrictName, getCrimeTypeName]);
+
+  // AI Case Linkage (Gemini 3.5 Flash-Lite)
+  const {
+    linkages, patterns, alerts: geminiAlerts, summary,
+    loading: linkageLoading, error: linkageError,
+    hasApiKey, lastAnalyzed, analyze,
+  } = useCaseLinkage(incidents, resolvers);
 
   const topRisk     = riskScores.slice(0, 8);
   const allAlerts   = [
@@ -40,6 +56,8 @@ export default function PredictivePage() {
     { value: criticalZones.length, label: 'Critical Zones',    icon: 'gpp_bad',        color: 'var(--brand-danger)' },
     { value: highZones.length,     label: 'High-Risk Zones',   icon: 'warning_amber',  color: 'var(--brand-warning)' },
     { value: allAlerts.length,     label: 'Anomalies Flagged', icon: 'notifications',  color: 'var(--text-secondary)' },
+    { value: patterns.length,      label: 'AI Patterns',       icon: 'pattern',        color: '#4dd0e1' },
+    { value: linkages.length,      label: 'Case Linkages',     icon: 'hub',            color: '#ce93d8' },
   ];
 
   return (
@@ -54,7 +72,7 @@ export default function PredictivePage() {
             AI-Driven Predictive Intelligence Engine
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            Statistical anomaly detection (Z-Score / IQR) + composite risk scoring across socio-economic & crime indicators
+            Statistical anomaly detection (Z-Score / IQR) + Gemini 3.5 Flash-Lite AI case linkage & pattern recognition
           </div>
         </div>
         <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -66,6 +84,19 @@ export default function PredictivePage() {
           ))}
         </div>
       </div>
+
+      {/* ── AI Case Linkage Panel (Gemini 3.5 Flash-Lite) ── */}
+      <CaseLinkagePanel
+        linkages={linkages}
+        patterns={patterns}
+        alerts={geminiAlerts}
+        summary={summary}
+        loading={linkageLoading}
+        error={linkageError}
+        hasApiKey={hasApiKey}
+        lastAnalyzed={lastAnalyzed}
+        onAnalyze={analyze}
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 16 }}>
         {/* Left: Risk scores */}

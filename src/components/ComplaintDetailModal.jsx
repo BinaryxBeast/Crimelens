@@ -43,6 +43,7 @@ export default function ComplaintDetailModal({ open, onClose, row, onEdit }) {
   const {
     getDistrictName, getCrimeTypeName, getStatusName, getGravityName,
     getUnitName, getCategoryName, getOccupationName, getActName,
+    getStateName, getCourtName, getEmployeeName,
   } = useLookupData();
 
   if (!open || !row) return null;
@@ -118,6 +119,10 @@ export default function ComplaintDetailModal({ open, onClose, row, onEdit }) {
               {categoryName && <>
                 <span className="detail-meta-sep">·</span>
                 <span className="detail-meta">{categoryName}</span>
+              </>}
+              {(cd.officer_name || row.PolicePersonID) && <>
+                <span className="detail-meta-sep">·</span>
+                <span className="detail-meta"><span className="material-icons" style={{fontSize:13, verticalAlign: 'text-bottom', marginRight: 2}}>person</span>Created by: {cd.officer_name || getEmployeeName(row.PolicePersonID)}</span>
               </>}
             </div>
           </div>
@@ -284,6 +289,42 @@ export default function ComplaintDetailModal({ open, onClose, row, onEdit }) {
                   </div>
                 );
               })}
+            </Section>
+          )}
+
+          {/* ── Arrests (Multiple) ── */}
+          {row._arrests && row._arrests.length > 0 && (
+            <Section number="A" title="Arrests / Surrenders" icon="gavel" iconColor="#1976d2">
+              {row._arrests.map((arr, idx) => (
+                <div key={idx} className="detail-person-row" style={idx > 0 ? { marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' } : {}}>
+                  <div className="detail-grid detail-grid-4">
+                    <Field label="Type" value={arr.ArrestSurrenderTypeID === 1 ? 'Arrest' : arr.ArrestSurrenderTypeID === 2 ? 'Surrender' : 'Unknown'} />
+                    <Field label="Date" value={arr.ArrestSurrenderDate} mono />
+                    <Field label="State" value={getStateName(arr.ArrestSurrenderStateId)} />
+                    <Field label="District" value={getDistrictName(arr.ArrestSurrenderDistrictId)} />
+                  </div>
+                  <div className="detail-grid detail-grid-3" style={{ marginTop: 8 }}>
+                    <Field label="Police Station" value={getUnitName(arr.PoliceStationID)} />
+                    <Field label="Investigating Officer" value={getEmployeeName(arr.IOID)} />
+                    <Field label="Court" value={getCourtName(arr.CourtID)} />
+                  </div>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* ── Chargesheets (Multiple) ── */}
+          {row._chargesheets && row._chargesheets.length > 0 && (
+            <Section number="C" title="Chargesheets" icon="assignment" iconColor="#1976d2">
+              {row._chargesheets.map((cs, idx) => (
+                <div key={idx} className="detail-person-row" style={idx > 0 ? { marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' } : {}}>
+                  <div className="detail-grid detail-grid-3">
+                    <Field label="Date" value={cs.csdate} mono />
+                    <Field label="Type" value={cs.cstype === 'A' ? 'A - Chargesheet' : cs.cstype === 'B' ? 'B - False Case' : cs.cstype === 'C' ? 'C - Undetected' : cs.cstype} />
+                    <Field label="Officer" value={getEmployeeName(cs.PolicePersonID)} />
+                  </div>
+                </div>
+              ))}
             </Section>
           )}
 

@@ -11,6 +11,7 @@ const NODE_COLORS = {
   station:  '#4ea8de',
   victim:   '#ffd166',
   incident: '#8b8b99',
+  officer:  '#06d6a0',
 };
 
 const NODE_ICONS = {
@@ -19,6 +20,7 @@ const NODE_ICONS = {
   station:  'local_police',
   victim:   'accessibility_new',
   incident: 'description',
+  officer:  'badge',
 };
 
 function getNodeColor(node) {
@@ -732,6 +734,12 @@ const NetworkGraph = forwardRef(function NetworkGraph({ height = 600 }, ref) {
             <div className="net3d-detail-body">
               <DetailRow icon="location_city" label="District" value={selectedNode.district || '—'} />
               <DetailRow icon="fingerprint" label="Modus Operandi" value={selectedNode.modus || '—'} />
+            </div>
+          )}
+
+          {selectedNode.type === 'officer' && (
+            <div className="net3d-detail-body">
+              <DetailRow icon="badge" label="Officer Rank" value={selectedNode.rank || '—'} />
             </div>
           )}
 
